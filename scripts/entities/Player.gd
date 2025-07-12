@@ -26,8 +26,8 @@ var available_weapons: Array[String] = ["Basic Sword", "Iron Blade", "Magic Staf
 var available_armor: Array[String] = ["Cloth Robe", "Leather Armor", "Chain Mail"]
 var available_accessories: Array[String] = ["Lucky Charm", "Power Ring", "Speed Boots"]
 
-# Attack system
-var available_attacks: Array[String] = ["Slash", "Block", "Defend", "Power Strike", "Quick Attack", "Magic Bolt"]
+# Attack system - now using AttackDatabase
+var available_attacks: Array[String] = ["Slash", "Block", "Defend", "Power Strike", "Quick Attack", "Magic Bolt", "Lunge Strike", "Poison Blade", "Fire Blast"]
 var equipped_attacks: Array[String] = ["Slash", "Block", "Defend"]  # Max 3-4 equipped attacks
 var max_equipped_attacks: int = 4
 
@@ -49,30 +49,9 @@ func take_damage(damage: int):
 func heal(amount: int):
 	current_hp = min(max_hp, current_hp + amount)
 
+# Updated to use AttackDatabase
 func get_attack_damage(attack_name: String) -> int:
-	var base_damage = 0
-	
-	# Base attack calculations
-	match attack_name:
-		"Slash":
-			base_damage = stats["STR"] + stats["DEX"]
-		"Block":
-			base_damage = stats["STR"] / 2
-		"Defend":
-			base_damage = 0
-		"Power Strike":
-			base_damage = stats["STR"] * 2
-		"Quick Attack":
-			base_damage = stats["DEX"] + stats["SPD"] / 2
-		"Magic Bolt":
-			base_damage = stats["INT"] + stats["LCK"]
-		_:
-			base_damage = stats["STR"]
-	
-	# Add weapon bonus
-	base_damage += get_weapon_damage_bonus()
-	
-	return base_damage
+	return AttackDatabase.calculate_attack_damage(attack_name, stats, get_weapon_damage_bonus())
 
 func get_speed() -> int:
 	var base_speed = stats["SPD"]
@@ -83,7 +62,7 @@ func get_speed() -> int:
 	
 	return base_speed
 
-# New equipment methods
+# Equipment bonus methods (unchanged)
 func get_weapon_damage_bonus() -> int:
 	match equipped_weapon:
 		"Basic Sword":
@@ -117,7 +96,7 @@ func get_accessory_bonus() -> Dictionary:
 		_:
 			return {}
 
-# Equipment management
+# Equipment management (unchanged)
 func equip_weapon(weapon_name: String) -> bool:
 	if weapon_name in available_weapons:
 		equipped_weapon = weapon_name
@@ -136,8 +115,9 @@ func equip_accessory(accessory_name: String) -> bool:
 		return true
 	return false
 
-# Attack management
+# Attack management - now validates against AttackDatabase
 func equip_attack(attack_name: String) -> bool:
+	# Check if attack exists in database and is available to player
 	if attack_name in available_attacks and attack_name not in equipped_attacks:
 		if equipped_attacks.size() < max_equipped_attacks:
 			equipped_attacks.append(attack_name)
@@ -153,7 +133,7 @@ func unequip_attack(attack_name: String) -> bool:
 func can_equip_more_attacks() -> bool:
 	return equipped_attacks.size() < max_equipped_attacks
 
-# Get methods for UI
+# Get methods for UI (unchanged)
 func get_equipped_items() -> Dictionary:
 	return {
 		"weapon": equipped_weapon,
@@ -167,3 +147,11 @@ func get_available_items() -> Dictionary:
 		"armor": available_armor,
 		"accessories": available_accessories
 	}
+
+# New helper methods for attack info
+func get_attack_info(attack_name: String) -> Dictionary:
+	return AttackDatabase.get_attack_data(attack_name)
+
+func get_attack_description(attack_name: String) -> String:
+	var attack_data = AttackDatabase.get_attack_data(attack_name)
+	return attack_data.get("description", "No description available")

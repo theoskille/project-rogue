@@ -4,6 +4,7 @@ extends Control
 var player: Player  # Will be set by GameManager
 var enemy: Enemy
 var game_manager: Node
+var status_manager: StatusEffectManager  # Handles DOT and other ongoing effects
 
 # Combat state
 var player_position: int = 2  # 0-7 on battlefield
@@ -17,15 +18,7 @@ var current_menu: String = "main"  # "main" or "attack"
 var main_action_options: Array[String] = ["Attack", "Move Forward", "Move Back", "Run"]
 var attack_options: Array[String] = []  # Will be populated from player's equipped attacks
 
-# Attack data - [damage, range, accuracy] - covers all possible attacks
-var attack_data: Dictionary = {
-	"Slash": [9, 1, 0.90],
-	"Block": [3, 1, 0.95],
-	"Defend": [0, 0, 1.0],  # No damage, defensive move
-	"Power Strike": [15, 1, 0.70],
-	"Quick Attack": [6, 2, 0.85],
-	"Magic Bolt": [8, 3, 0.75]
-}
+# No longer need attack_data - using AttackDatabase instead
 
 # UI elements - direct children of CombatManager
 @onready var combat_info: Label = $HeaderContainer/CombatInfo
@@ -39,6 +32,7 @@ var attack_data: Dictionary = {
 
 func _ready():
 	game_manager = get_parent()
+	status_manager = StatusEffectManager.new()
 	# Note: player will be set by GameManager via set_player()
 	setup_battlefield()
 	setup_actions_menu()
@@ -105,6 +99,9 @@ func initialize_combat(enemy_data: Enemy):
 	current_menu = "main"
 	selected_action = 0
 	
+	# Clear any previous status effects
+	status_manager.clear_all_effects()
+	
 	# Update attack options from player's equipped attacks
 	update_attack_options()
 	
@@ -158,18 +155,30 @@ func update_actions_menu():
 		
 		if i == selected_action:
 			label.modulate = Color.YELLOW
-			if current_menu == "attack" and current_options[i] in attack_data:
-				# Show attack details
-				var data = attack_data[current_options[i]]
-				label.text = "> %s (DMG:%d RNG:%d ACC:%d%%) <" % [current_options[i], data[0], data[1], int(data[2] * 100)]
+			if current_menu == "attack" and current_options[i] != "Back":
+				# Show attack details from AttackDatabase
+				var attack_data = AttackDatabase.get_attack_data(current_options[i])
+				var damage = AttackDatabase.calculate_attack_damage(current_options[i], player.stats, player.get_weapon_damage_bonus())
+				label.text = "> %s (DMG:%d RNG:%d ACC:%d%%) <" % [
+					current_options[i], 
+					damage, 
+					attack_data["range"], 
+					int(attack_data["accuracy"] * 100)
+				]
 			else:
 				label.text = "> " + current_options[i] + " <"
 		else:
 			label.modulate = Color.WHITE
-			if current_menu == "attack" and current_options[i] in attack_data:
-				# Show attack details
-				var data = attack_data[current_options[i]]
-				label.text = "  %s (DMG:%d RNG:%d ACC:%d%%)" % [current_options[i], data[0], data[1], int(data[2] * 100)]
+			if current_menu == "attack" and current_options[i] != "Back":
+				# Show attack details from AttackDatabase
+				var attack_data = AttackDatabase.get_attack_data(current_options[i])
+				var damage = AttackDatabase.calculate_attack_damage(current_options[i], player.stats, player.get_weapon_damage_bonus())
+				label.text = "  %s (DMG:%d RNG:%d ACC:%d%%)" % [
+					current_options[i], 
+					damage, 
+					attack_data["range"], 
+					int(attack_data["accuracy"] * 100)
+				]
 			else:
 				label.text = "  " + current_options[i]
 		
@@ -217,25 +226,35 @@ func player_attack(attack_name: String):
 		end_player_turn()
 		return
 	
-	# Use player's actual attack damage calculation for equipped attacks
-	var damage = player.get_attack_damage(attack_name)
-	
-	# Get attack data for range and accuracy (fallback if not in data)
-	var range = 1
-	var accuracy = 0.85
-	
-	if attack_data.has(attack_name):
-		var data = attack_data[attack_name]
-		# Override damage with player's calculation, but use range and accuracy from data
-		range = data[1]
-		accuracy = data[2]
+	# Get attack data from AttackDatabase
+	var attack_data = AttackDatabase.get_attack_data(attack_name)
+	var damage = AttackDatabase.calculate_attack_damage(attack_name, player.stats, player.get_weapon_damage_bonus())
+	var range = attack_data["range"]
+	var accuracy = attack_data["accuracy"]
 	
 	var distance = abs(player_position - enemy_position)
 	
+	# Check range
 	if distance > range:
 		log_combat_message("Too far to use %s! (Distance: %d, Range: %d)" % [attack_name, distance, range])
 		return
 	
+	# Execute special effects BEFORE damage (for movement attacks)
+	var effects = AttackDatabase.get_special_effects(attack_name)
+	if effects.size() > 0:
+		SpecialEffectsHandler.execute_special_effects(attack_name, self)
+		# Recalculate distance after potential movement
+		distance = abs(player_position - enemy_position)
+		
+		# Check range again after movement
+		if distance > range:
+			log_combat_message("%s moved player out of range!" % attack_name)
+			current_menu = "main"
+			selected_action = 0
+			end_player_turn()
+			return
+	
+	# Apply damage
 	if randf() < accuracy:
 		enemy.take_damage(damage)
 		log_combat_message("Player uses %s for %d damage!" % [attack_name, damage])
@@ -280,6 +299,17 @@ func end_player_turn():
 		end_combat(true)
 		return
 	
+	# Apply status effects to enemy at end of player turn
+	var enemy_status_messages = status_manager.apply_enemy_effects(enemy, self)
+	for message in enemy_status_messages:
+		log_combat_message(message)
+	
+	# Check if enemy died from status effects
+	if not enemy.is_alive():
+		log_combat_message("Enemy defeated by status effects!")
+		end_combat(true)
+		return
+	
 	current_turn = "enemy"
 	call_deferred("take_enemy_turn")
 
@@ -321,6 +351,17 @@ func end_enemy_turn():
 		end_combat(false)
 		return
 	
+	# Apply status effects to player at end of enemy turn  
+	var player_status_messages = status_manager.apply_player_effects(player, self)
+	for message in player_status_messages:
+		log_combat_message(message)
+	
+	# Check if player died from status effects
+	if not player.is_alive():
+		log_combat_message("Player defeated by status effects!")
+		end_combat(false)
+		return
+	
 	current_turn = "player"
 
 func end_combat(player_won: bool):
@@ -339,10 +380,15 @@ func update_display():
 	update_battlefield()
 	update_actions_menu()
 	
-	# Status display
-	status_display.text = "Player HP: %d/%d\nEnemy HP: %d/%d" % [
+	# Status display with status effects
+	var player_status = status_manager.get_player_status_text()
+	var enemy_status = status_manager.get_enemy_status_text()
+	
+	status_display.text = "Player HP: %d/%d\n%sEnemy HP: %d/%d\n%s" % [
 		player.current_hp, player.max_hp,
-		enemy.current_hp, enemy.max_hp
+		player_status + "\n" if player_status != "" else "",
+		enemy.current_hp, enemy.max_hp,
+		enemy_status + "\n" if enemy_status != "" else ""
 	]
 
 func update_combat_info():
