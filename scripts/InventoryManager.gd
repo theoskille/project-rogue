@@ -1,6 +1,9 @@
 class_name InventoryManager
 extends Control
 
+# Database references
+var attack_database: AttackDatabase
+
 # UI References - Left Panel (Player Stats)
 @onready var player_stats_label: Label = $HBoxContainer/LeftPanel/PlayerStatsPanel/PlayerStatsLabel
 
@@ -26,11 +29,17 @@ extends Control
 @onready var attacks_list: ItemList = $HBoxContainer/RightPanel/AttacksPanel/AttacksList
 @onready var attack_instructions: Label = $HBoxContainer/RightPanel/AttacksPanel/AttackInstructions
 
+# UI References - Center Panel (Skill Tree)
+@onready var skill_tree_ui: Control = $HBoxContainer/CenterPanel/SkillTreePanel/SkillTreeUI
+
 # State variables
 var current_focus: String = "items"  # "items" or "attacks"
 var player: Player
 
 func _ready():
+	# Initialize database references
+	attack_database = AttackDatabase.new()
+	
 	setup_ui()
 	connect_signals()
 
@@ -57,17 +66,34 @@ func connect_signals():
 
 func set_player(p: Player):
 	player = p
+	print("InventoryManager: Setting player")
 	refresh_display()
+	
+	# Set up skill tree UI if it exists and has the script attached
+	if skill_tree_ui and skill_tree_ui.has_method("set_player"):
+		print("InventoryManager: Setting up skill tree UI")
+		skill_tree_ui.set_player(p)
+	else:
+		print("InventoryManager: Skill tree UI not found or missing set_player method")
 
 func refresh_display():
 	if not player:
+		print("InventoryManager: No player to refresh")
 		return
 	
+	print("InventoryManager: Refreshing display")
 	update_player_stats_display()
 	update_equipped_items_display()
 	update_equipped_attacks_display()
 	update_available_items_lists()
 	update_available_attacks_list()
+	
+	# Refresh skill tree if it exists and has the script attached
+	if skill_tree_ui and skill_tree_ui.has_method("refresh_display"):
+		print("InventoryManager: Refreshing skill tree")
+		skill_tree_ui.refresh_display()
+	else:
+		print("InventoryManager: Skill tree UI not found or missing refresh_display method")
 
 func update_player_stats_display():
 	if not player:
@@ -144,10 +170,23 @@ func update_available_attacks_list():
 		return
 	
 	attacks_list.clear()
-	for attack in player.available_attacks:
+	
+	# Get all attacks from AttackDatabase for debugging (you can remove this later)
+	var all_attacks = []
+	if attack_database:
+		all_attacks = attack_database.get_all_attack_names()
+	
+	# Show all attacks for debugging, but mark which ones are unlocked
+	for attack in all_attacks:
 		var text = attack
+		if player.is_attack_unlocked(attack):
+			text += " [UNLOCKED]"
+		else:
+			text += " [LOCKED]"
+		
 		if attack in player.equipped_attacks:
 			text += " [EQUIPPED]"
+		
 		attacks_list.add_item(text)
 
 func handle_input(event: InputEvent):

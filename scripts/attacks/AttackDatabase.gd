@@ -143,7 +143,10 @@ static func calculate_attack_damage(attack_name: String, player_stats: Dictionar
 
 # Get all available attacks (for inventory/UI purposes)
 static func get_all_attack_names() -> Array[String]:
-	return attacks.keys()
+	var attack_names: Array[String] = []
+	for attack_name in attacks.keys():
+		attack_names.append(attack_name)
+	return attack_names
 
 # Check if attack has specific special effect
 static func has_special_effect(attack_name: String, effect_id: String) -> bool:

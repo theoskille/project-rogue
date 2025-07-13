@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3 uid="uid://cjr7ffsxboub3"]
+[gd_scene load_steps=8 format=3 uid="uid://cjr7ffsxboub3"]
 
 [ext_resource type="Theme" uid="uid://cxepw6pfk6m64" path="res://custom_theme.tres" id="1_jyhfs"]
 [ext_resource type="Script" uid="uid://u311hdqr38uv" path="res://scripts/GameManager.gd" id="1_sugp2"]
@@ -6,6 +6,7 @@
 [ext_resource type="Script" uid="uid://bpn14da8v1gxo" path="res://scripts/CombatManager.gd" id="3_tbgi4"]
 [ext_resource type="Script" uid="uid://5rlne18u3bms" path="res://scripts/InventoryManager.gd" id="5_tbgi4"]
 [ext_resource type="Script" uid="uid://jo044yneufa2" path="res://scripts/combat/CombatAnimationOverlay.gd" id="5_tefeu"]
+[ext_resource type="Script" uid="uid://d1uie7a788rce" path="res://scripts/SkillTreeUI.gd" id="7_o6xl0"]
 
 [node name="Main" type="Control"]
 layout_mode = 3
@@ -295,18 +296,26 @@ text = "Attack Slot 4: Empty"
 layout_mode = 2
 size_flags_horizontal = 3
 
+[node name="SkillPointsLabel" type="Label" parent="InventoryManager/HBoxContainer/CenterPanel"]
+layout_mode = 2
+size_flags_vertical = 1
+text = "Skill Points: 0"
+metadata/_edit_use_anchors_ = true
+
 [node name="SkillTreePanel" type="Panel" parent="InventoryManager/HBoxContainer/CenterPanel"]
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="Label" type="Label" parent="InventoryManager/HBoxContainer/CenterPanel/SkillTreePanel"]
-layout_mode = 0
-offset_right = 40.0
-offset_bottom = 23.0
-text = "Skill tree (coming soon)
-"
-horizontal_alignment = 1
-vertical_alignment = 1
+[node name="SkillTreeUI" type="Control" parent="InventoryManager/HBoxContainer/CenterPanel/SkillTreePanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_vertical = 3
+script = ExtResource("7_o6xl0")
+metadata/_edit_use_anchors_ = true
 
 [node name="RightPanel" type="VBoxContainer" parent="InventoryManager/HBoxContainer"]
 layout_mode = 2

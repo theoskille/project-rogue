@@ -20,7 +20,7 @@ class Room:
 		id = room_id
 		type = room_type
 
-static func generate_dungeon(num_rooms: int = 8) -> Dictionary:
+static func generate_dungeon(num_rooms: int = 12) -> Dictionary:
 	var rooms: Dictionary = {}
 	var room_id = 0
 	var grid_size = calculate_grid_size(num_rooms)
@@ -35,17 +35,13 @@ static func generate_dungeon(num_rooms: int = 8) -> Dictionary:
 	positions_used.append(start_pos)
 	room_id += 1
 	
-	# Generate maze using recursive backtracking
-	var maze_positions = generate_maze_positions(start_pos, num_rooms, grid_size)
+	# Generate maze using depth-first search with controlled branching
+	var maze_positions = generate_organic_maze(start_pos, num_rooms, grid_size)
 	
 	# Create rooms for each maze position
 	for i in range(1, min(maze_positions.size(), num_rooms)):
 		var pos = maze_positions[i]
-		var room_type = RoomType.COMBAT  # Only combat rooms for now
-		
-		# Make the last room a boss room
-		if i == num_rooms - 1:
-			room_type = RoomType.BOSS
+		var room_type = determine_room_type(i, maze_positions.size())
 		
 		var room = Room.new(room_id, room_type)
 		room.position = pos
@@ -63,8 +59,8 @@ static func generate_dungeon(num_rooms: int = 8) -> Dictionary:
 		positions_used.append(pos)
 		room_id += 1
 	
-	# Connect adjacent rooms (only orthogonal connections)
-	connect_adjacent_rooms(rooms)
+	# Create minimal connections for maze-like feel
+	create_minimal_connections(rooms)
 	
 	# Ensure there's a guaranteed path to the boss
 	var boss_id = find_boss_room(rooms)
@@ -81,16 +77,16 @@ static func calculate_grid_size(num_rooms: int) -> int:
 	# Calculate a grid size that can accommodate the rooms with some spacing
 	return max(int(ceil(sqrt(num_rooms * 2))), 5)
 
-static func generate_maze_positions(start_pos: Vector2, num_rooms: int, grid_size: int) -> Array[Vector2]:
+static func generate_organic_maze(start_pos: Vector2, num_rooms: int, grid_size: int) -> Array[Vector2]:
 	var positions: Array[Vector2] = [start_pos]
-	var available_positions: Array[Vector2] = []
-	var current_pos = start_pos
 	var visited_positions = {start_pos: true}
+	var stack: Array[Vector2] = [start_pos]
 	
 	# Directions: up, right, down, left
 	var directions = [Vector2(0, -1), Vector2(1, 0), Vector2(0, 1), Vector2(-1, 0)]
 	
-	while positions.size() < num_rooms:
+	while positions.size() < num_rooms and stack.size() > 0:
+		var current_pos = stack[stack.size() - 1]
 		var valid_directions: Array[Vector2] = []
 		
 		# Find valid directions from current position
@@ -102,48 +98,125 @@ static func generate_maze_positions(start_pos: Vector2, num_rooms: int, grid_siz
 				valid_directions.append(new_pos)
 		
 		if valid_directions.size() > 0:
-			# Choose a random valid direction
-			var next_pos = valid_directions[randi() % valid_directions.size()]
+			# Choose a random valid direction (with bias towards continuing current path)
+			var next_pos: Vector2
+			if randf() < 0.7 and positions.size() < num_rooms * 0.8:  # 70% chance to continue path
+				next_pos = valid_directions[randi() % valid_directions.size()]
+			else:
+				# Create a branch or dead end
+				next_pos = valid_directions[randi() % valid_directions.size()]
+			
 			positions.append(next_pos)
 			visited_positions[next_pos] = true
-			current_pos = next_pos
+			stack.append(next_pos)
 		else:
-			# Backtrack: choose a random previous position that has available directions
-			var backtrack_candidates: Array[Vector2] = []
-			
-			for pos in positions:
-				for direction in directions:
-					var test_pos = pos + direction
-					if is_valid_position(test_pos, grid_size) and test_pos not in visited_positions:
-						backtrack_candidates.append(pos)
-						break
-			
-			if backtrack_candidates.size() > 0:
-				current_pos = backtrack_candidates[randi() % backtrack_candidates.size()]
-			else:
-				# No more valid positions, fill remaining with adjacent positions
-				break
+			# Backtrack
+			stack.pop_back()
+	
+	# If we didn't generate enough rooms, add some dead ends and branches
+	while positions.size() < num_rooms:
+		var added_rooms = add_branches_and_dead_ends(positions, visited_positions, grid_size, num_rooms - positions.size())
+		if added_rooms == 0:
+			break
 	
 	return positions
 
-static func is_valid_position(pos: Vector2, grid_size: int) -> bool:
-	return pos.x >= 0 and pos.x < grid_size and pos.y >= 0 and pos.y < grid_size
-
-static func connect_adjacent_rooms(rooms: Dictionary):
-	# Only connect rooms that are orthogonally adjacent (no diagonals)
+static func add_branches_and_dead_ends(positions: Array[Vector2], visited_positions: Dictionary, grid_size: int, max_to_add: int) -> int:
+	var added = 0
 	var directions = [Vector2(0, -1), Vector2(1, 0), Vector2(0, 1), Vector2(-1, 0)]
 	
-	for room_id in rooms.keys():
-		var room = rooms[room_id]
-		
-		for direction in directions:
-			var adjacent_pos = room.position + direction
-			var adjacent_room_id = find_room_at_position(rooms, adjacent_pos)
+	# Try to add branches from existing rooms
+	for pos in positions:
+		if added >= max_to_add:
+			break
 			
-			if adjacent_room_id != -1 and adjacent_room_id not in room.connections:
-				# Create bidirectional connection
-				room.connections.append(adjacent_room_id)
-				rooms[adjacent_room_id].connections.append(room_id)
+		for direction in directions:
+			if added >= max_to_add:
+				break
+				
+			var new_pos = pos + direction
+			if is_valid_position(new_pos, grid_size) and new_pos not in visited_positions:
+				positions.append(new_pos)
+				visited_positions[new_pos] = true
+				added += 1
+				
+				# 50% chance to add another room in the same direction (creating longer branches)
+				if randf() < 0.5:
+					var branch_pos = new_pos + direction
+					if is_valid_position(branch_pos, grid_size) and branch_pos not in visited_positions and added < max_to_add:
+						positions.append(branch_pos)
+						visited_positions[branch_pos] = true
+						added += 1
+	
+	return added
+
+static func determine_room_type(room_index: int, total_rooms: int) -> RoomType:
+	# Create more variety in room types
+	var ratio = float(room_index) / float(total_rooms)
+	
+	if ratio < 0.2:  # First 20% - mostly empty rooms
+		return RoomType.EMPTY if randf() < 0.7 else RoomType.COMBAT
+	elif ratio < 0.8:  # Middle 60% - mix of combat and empty
+		return RoomType.COMBAT if randf() < 0.8 else RoomType.EMPTY
+	else:  # Last 20% - mostly combat, with boss at the end
+		return RoomType.BOSS if room_index == total_rooms - 1 else RoomType.COMBAT
+
+static func create_minimal_connections(rooms: Dictionary):
+	# Create a tree-like structure with minimal connections
+	var directions = [Vector2(0, -1), Vector2(1, 0), Vector2(0, 1), Vector2(-1, 0)]
+	var connected_rooms = {0: true}  # Start with the starting room
+	var unconnected_rooms = {}
+	
+	# Initialize unconnected rooms
+	for room_id in rooms.keys():
+		if room_id != 0:
+			unconnected_rooms[room_id] = rooms[room_id]
+	
+	# Connect rooms one by one to create a tree
+	while unconnected_rooms.size() > 0:
+		var room_to_connect = -1
+		var room_to_connect_to = -1
+		var min_distance = INF
+		
+		# Find the closest unconnected room to any connected room
+		for unconnected_id in unconnected_rooms.keys():
+			var unconnected_room = unconnected_rooms[unconnected_id]
+			
+			for connected_id in connected_rooms.keys():
+				var connected_room = rooms[connected_id]
+				var distance = unconnected_room.position.distance_to(connected_room.position)
+				
+				# Prefer adjacent rooms, but allow some longer connections for variety
+				if distance <= 1.5 and distance < min_distance:  # Allow diagonal-like connections
+					min_distance = distance
+					room_to_connect = unconnected_id
+					room_to_connect_to = connected_id
+		
+		# If no adjacent room found, find the closest one
+		if room_to_connect == -1:
+			for unconnected_id in unconnected_rooms.keys():
+				var unconnected_room = unconnected_rooms[unconnected_id]
+				
+				for connected_id in connected_rooms.keys():
+					var connected_room = rooms[connected_id]
+					var distance = unconnected_room.position.distance_to(connected_room.position)
+					
+					if distance < min_distance:
+						min_distance = distance
+						room_to_connect = unconnected_id
+						room_to_connect_to = connected_id
+		
+		# Connect the room
+		if room_to_connect != -1:
+			rooms[room_to_connect].connections.append(room_to_connect_to)
+			rooms[room_to_connect_to].connections.append(room_to_connect)
+			connected_rooms[room_to_connect] = true
+			unconnected_rooms.erase(room_to_connect)
+		else:
+			break  # Safety break
+
+static func is_valid_position(pos: Vector2, grid_size: int) -> bool:
+	return pos.x >= 0 and pos.x < grid_size and pos.y >= 0 and pos.y < grid_size
 
 static func find_room_at_position(rooms: Dictionary, position: Vector2) -> int:
 	for room_id in rooms.keys():

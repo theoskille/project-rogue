@@ -20,8 +20,12 @@ func _init():
 	# Call parent constructor to set up health
 	super._init()
 	
-	# Player-specific attack setup
-	available_attacks = ["Slash", "Block", "Defend", "Power Strike", "Quick Attack", "Magic Bolt", "Lunge Strike", "Poison Blade", "Fire Blast"]
+	# Initialize skill tree system
+	skill_tree_database = SkillTreeDatabase.new()
+	initialize_skill_tree()
+	
+	# Player-specific attack setup - now based on skill tree
+	available_attacks = get_unlocked_attacks()
 	equipped_attacks = ["Slash", "Block", "Defend"]  # Max 3-4 equipped attacks
 	
 	# Start with basic equipment
@@ -45,6 +49,63 @@ var level: int = 1
 var experience: int = 0
 var experience_to_next_level: int = 100  # Base XP requirement
 
+# Skill tree system
+var skill_points: int = 0
+var unlocked_skill_nodes: Array[String] = []
+var skill_tree_database: SkillTreeDatabase
+
+# Initialize skill tree with starting abilities
+func initialize_skill_tree():
+	# Start with the starting nodes (nodes with no prerequisites)
+	var starting_nodes = skill_tree_database.get_starting_nodes()
+	for node_id in starting_nodes:
+		unlock_skill_node(node_id)
+
+# Unlock a skill tree node
+func unlock_skill_node(node_id: String) -> bool:
+	# Check if we can unlock this node
+	if not skill_tree_database.can_unlock_node(node_id, unlocked_skill_nodes):
+		return false
+	
+	# Check if we have enough skill points
+	var cost = skill_tree_database.get_node_cost(node_id)
+	if skill_points < cost:
+		return false
+	
+	# Unlock the node
+	unlocked_skill_nodes.append(node_id)
+	skill_points -= cost
+	
+	# Update available attacks
+	available_attacks = get_unlocked_attacks()
+	
+	print("Unlocked skill: %s" % skill_tree_database.get_node(node_id).name)
+	return true
+
+# Get all attacks that are unlocked through the skill tree
+func get_unlocked_attacks() -> Array[String]:
+	var unlocked_attacks: Array[String] = []
+	
+	for node_id in unlocked_skill_nodes:
+		var node_data = skill_tree_database.get_node(node_id)
+		if node_data.has("attack_name"):
+			unlocked_attacks.append(node_data.attack_name)
+	
+	return unlocked_attacks
+
+# Get skill tree information for UI
+func get_skill_tree_info() -> Dictionary:
+	return {
+		"skill_points": skill_points,
+		"unlocked_nodes": unlocked_skill_nodes,
+		"unlockable_nodes": skill_tree_database.get_unlockable_nodes(unlocked_skill_nodes),
+		"all_nodes": skill_tree_database.get_all_node_ids()
+	}
+
+# Check if a specific attack is unlocked
+func is_attack_unlocked(attack_name: String) -> bool:
+	return attack_name in get_unlocked_attacks()
+
 # XP requirements scale with level
 func get_xp_for_next_level() -> int:
 	return level * 100  # Simple scaling: level 1->2 = 100 XP, level 2->3 = 200 XP, etc.
@@ -61,6 +122,9 @@ func perform_level_up():
 	# Increase level
 	level += 1
 	
+	# Award skill point
+	skill_points += 1
+	
 	# Increase all stats by 1
 	for stat_name in stats.keys():
 		stats[stat_name] += 1
@@ -76,6 +140,8 @@ func perform_level_up():
 	
 	# Emit signal for UI updates
 	emit_signal("level_up", level, old_max_hp, max_hp)
+	
+	print("Level up! You gained a skill point. Total skill points: %d" % skill_points)
 
 # Get level info for UI
 func get_level_info() -> Dictionary:
