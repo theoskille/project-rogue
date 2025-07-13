@@ -14,6 +14,7 @@ class Room:
 	var visited: bool = false
 	var cleared: bool = false
 	var position: Vector2
+	var enemy_id: String = ""  # ID from EnemyDatabase
 	
 	func _init(room_id: int, room_type: RoomType):
 		id = room_id
@@ -48,6 +49,16 @@ static func generate_dungeon(num_rooms: int = 8) -> Dictionary:
 		
 		var room = Room.new(room_id, room_type)
 		room.position = pos
+		
+		# Assign enemy based on room type
+		match room_type:
+			RoomType.COMBAT:
+				room.enemy_id = EnemyDatabase.get_random_enemy()
+			RoomType.BOSS:
+				room.enemy_id = EnemyDatabase.get_random_boss()
+			RoomType.EMPTY:
+				room.enemy_id = ""  # No enemy for empty rooms
+		
 		rooms[room_id] = room
 		positions_used.append(pos)
 		room_id += 1
@@ -208,10 +219,14 @@ static func get_connected_component(rooms: Dictionary, start_room: int) -> Array
 	
 	return component
 
-static func get_enemy_for_room() -> Enemy:
-	var enemy_types = ["Goblin", "Orc", "Skeleton", "Spider", "Wolf", "Bandit"]
-	var random_type = enemy_types[randi() % enemy_types.size()]
-	return Enemy.new(random_type)
+static func get_enemy_for_room(room_id: int, rooms: Dictionary) -> Enemy:
+	if rooms.has(room_id):
+		var room = rooms[room_id]
+		if room.enemy_id != "":
+			return EnemyDatabase.create_enemy(room.enemy_id)
+	
+	# Fallback to random enemy
+	return EnemyDatabase.create_enemy(EnemyDatabase.get_random_enemy())
 
 # Helper function to get room type display name
 static func get_room_type_name(room_type: RoomType) -> String:
@@ -224,3 +239,12 @@ static func get_room_type_name(room_type: RoomType) -> String:
 			return "Boss Room"
 		_:
 			return "Unknown Room"
+
+# Helper function to get enemy name for a room
+static func get_room_enemy_name(room_id: int, rooms: Dictionary) -> String:
+	if rooms.has(room_id):
+		var room = rooms[room_id]
+		if room.enemy_id != "":
+			var enemy_data = EnemyDatabase.get_enemy_data(room.enemy_id)
+			return enemy_data["display_name"]
+	return "No Enemy"

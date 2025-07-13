@@ -105,12 +105,21 @@ func create_room_node(room_id: int, room_data, position: Vector2) -> Control:
 	label.add_theme_font_size_override("font_size", 12)
 	room_node.add_child(label)
 	
-	# Add room type indicator
+	# Add room type indicator with enemy name
 	var type_label = Label.new()
-	type_label.text = get_room_type_short_name(room_data.type)
+	var type_text = get_room_type_short_name(room_data.type)
+	
+	# Add enemy name for combat/boss rooms
+	if room_data.type != DungeonGenerator.RoomType.EMPTY:
+		var enemy_name = DungeonGenerator.get_room_enemy_name(room_id, dungeon_data["rooms"])
+		type_text += "\n" + enemy_name
+	
+	type_label.text = type_text
 	type_label.position = Vector2(5, 25)
 	type_label.add_theme_color_override("font_color", Color.WHITE)
-	type_label.add_theme_font_size_override("font_size", 10)
+	type_label.add_theme_font_size_override("font_size", 8)
+	type_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	type_label.custom_minimum_size = Vector2(40, 20)
 	room_node.add_child(type_label)
 	
 	# Add visited indicator
@@ -281,15 +290,13 @@ func enter_current_room():
 	update_ui()
 
 func start_combat():
-	var enemy = DungeonGenerator.get_enemy_for_room()
+	# Use the new modular enemy system
+	var enemy = DungeonGenerator.get_enemy_for_room(current_room_id, dungeon_data["rooms"])
 	game_manager.start_combat(enemy)
 
 func start_boss_fight():
-	var boss = Enemy.new("Boss Orc")
-	boss.stats = {"STR": 18, "INT": 8, "SPD": 6, "DEX": 10, "CON": 25, "DEF": 14, "LCK": 8}
-	boss.max_hp = boss.stats["CON"] * 3
-	boss.current_hp = boss.max_hp
-	boss.attacks = ["Mighty Swing", "Roar", "Charge"]
+	# Use the new modular enemy system for boss fights too
+	var boss = DungeonGenerator.get_enemy_for_room(current_room_id, dungeon_data["rooms"])
 	game_manager.start_combat(boss)
 
 func room_cleared():
@@ -302,12 +309,17 @@ func room_cleared():
 func update_ui():
 	var current_room = dungeon_data["rooms"][current_room_id]
 	
-	# Room info
+	# Room info with enemy name
 	var room_type_text = DungeonGenerator.get_room_type_name(current_room.type)
 	if current_room.cleared:
 		room_type_text += " (Cleared)"
 	
-	room_info_label.text = "Current Room: %d - %s" % [current_room_id, room_type_text]
+	var enemy_info = ""
+	if current_room.type != DungeonGenerator.RoomType.EMPTY:
+		var enemy_name = DungeonGenerator.get_room_enemy_name(current_room_id, dungeon_data["rooms"])
+		enemy_info = " - " + enemy_name
+	
+	room_info_label.text = "Current Room: %d - %s%s" % [current_room_id, room_type_text, enemy_info]
 	
 	# Show available directions
 	var directions_text = "Available directions: "

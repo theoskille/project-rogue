@@ -111,7 +111,7 @@ func initialize_combat(enemy_data: Enemy):
 	else:
 		current_turn = "enemy"
 	
-	log_combat_message("Combat begins!")
+	log_combat_message("Combat begins against %s!" % enemy.name)
 	update_display()
 	
 	# If enemy goes first, take enemy turn
@@ -295,7 +295,7 @@ func end_player_turn():
 	update_display()
 	
 	if not enemy.is_alive():
-		log_combat_message("Enemy defeated!")
+		log_combat_message("%s defeated!" % enemy.name)
 		end_combat(true)
 		return
 	
@@ -306,7 +306,7 @@ func end_player_turn():
 	
 	# Check if enemy died from status effects
 	if not enemy.is_alive():
-		log_combat_message("Enemy defeated by status effects!")
+		log_combat_message("%s defeated by status effects!" % enemy.name)
 		end_combat(true)
 		return
 	
@@ -322,14 +322,15 @@ func take_enemy_turn():
 	
 	if distance <= 1:
 		# Attack
-		var damage = enemy.get_attack_damage(enemy.get_random_attack())
+		var attack_name = enemy.get_random_attack()
+		var damage = enemy.get_attack_damage(attack_name)
 		var hit_chance = 0.7
 		
 		if randf() < hit_chance:
 			player.take_damage(damage)
-			log_combat_message("Enemy hits for %d damage!" % damage)
+			log_combat_message("%s uses %s for %d damage!" % [enemy.name, attack_name, damage])
 		else:
-			log_combat_message("Enemy misses!")
+			log_combat_message("%s's %s misses!" % [enemy.name, attack_name])
 	else:
 		# Move closer
 		var direction = 1 if player_position > enemy_position else -1
@@ -337,9 +338,9 @@ func take_enemy_turn():
 		
 		if new_position != player_position and new_position >= 0 and new_position <= 7:
 			enemy_position = new_position
-			log_combat_message("Enemy moves to position %d" % enemy_position)
+			log_combat_message("%s moves to position %d" % [enemy.name, enemy_position])
 		else:
-			log_combat_message("Enemy can't move closer!")
+			log_combat_message("%s can't move closer!" % enemy.name)
 	
 	end_enemy_turn()
 
@@ -380,26 +381,41 @@ func update_display():
 	update_battlefield()
 	update_actions_menu()
 	
-	# Status display with status effects
+	# Enhanced status display with enemy name and stats
 	var player_status = status_manager.get_player_status_text()
 	var enemy_status = status_manager.get_enemy_status_text()
 	
-	status_display.text = "Player HP: %d/%d\n%sEnemy HP: %d/%d\n%s" % [
+	# Format player stats
+	var player_stats_text = "STR:%d INT:%d SPD:%d DEX:%d CON:%d DEF:%d LCK:%d" % [
+		player.stats["STR"], player.stats["INT"], player.stats["SPD"], 
+		player.stats["DEX"], player.stats["CON"], player.stats["DEF"], player.stats["LCK"]
+	]
+	
+	# Format enemy stats
+	var enemy_stats_text = "STR:%d INT:%d SPD:%d DEX:%d CON:%d DEF:%d LCK:%d" % [
+		enemy.stats["STR"], enemy.stats["INT"], enemy.stats["SPD"], 
+		enemy.stats["DEX"], enemy.stats["CON"], enemy.stats["DEF"], enemy.stats["LCK"]
+	]
+	
+	status_display.text = "=== PLAYER ===\nHP: %d/%d\nStats: %s\n%s\n=== %s ===\nHP: %d/%d\nStats: %s\n%s" % [
 		player.current_hp, player.max_hp,
-		player_status + "\n" if player_status != "" else "",
+		player_stats_text,
+		player_status if player_status != "" else "No status effects",
+		enemy.name.to_upper(),
 		enemy.current_hp, enemy.max_hp,
-		enemy_status + "\n" if enemy_status != "" else ""
+		enemy_stats_text,
+		enemy_status if enemy_status != "" else "No status effects"
 	]
 
 func update_combat_info():
-	# Combat info
+	# Combat info with simpler player turn text
 	if current_turn == "player":
 		if current_menu == "main":
-			combat_info.text = "Your Turn - Use W/S to select, SPACE to confirm"
+			combat_info.text = "Player Turn - Use W/S to select, SPACE to confirm"
 		else:
 			combat_info.text = "Select Attack - Use W/S to select, SPACE to confirm"
 	else:
-		combat_info.text = "Enemy Turn..."
+		combat_info.text = "%s's Turn..." % enemy.name
 	
 	combat_info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
