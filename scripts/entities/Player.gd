@@ -1,22 +1,31 @@
 class_name Player
-extends Resource
+extends Entity
 
-# Base stats
-var stats = {
-	"STR": 12,
-	"INT": 8, 
-	"SPD": 10,
-	"DEX": 11,
-	"CON": 15,
-	"DEF": 9,
-	"LCK": 6
-}
+# Player-specific stats (override base stats)
+func _init():
+	# Override base stats with player-specific values
+	stats = {
+		"STR": 12,
+		"INT": 8, 
+		"SPD": 10,
+		"DEX": 11,
+		"CON": 15,
+		"DEF": 9,
+		"LCK": 6
+	}
+	
+	# Call parent constructor to set up health
+	super._init()
+	
+	# Player-specific attack setup
+	available_attacks = ["Slash", "Block", "Defend", "Power Strike", "Quick Attack", "Magic Bolt", "Lunge Strike", "Poison Blade", "Fire Blast"]
+	equipped_attacks = ["Slash", "Block", "Defend"]  # Max 3-4 equipped attacks
+	
+	# Start with basic equipment
+	equipped_weapon = "Basic Sword"
+	equipped_armor = "Cloth Robe"
 
-# Health system
-var current_hp: int
-var max_hp: int
-
-# Equipment system
+# Equipment system (Player-specific)
 var equipped_weapon: String = ""
 var equipped_armor: String = ""
 var equipped_accessory: String = ""
@@ -26,33 +35,9 @@ var available_weapons: Array[String] = ["Basic Sword", "Iron Blade", "Magic Staf
 var available_armor: Array[String] = ["Cloth Robe", "Leather Armor", "Chain Mail"]
 var available_accessories: Array[String] = ["Lucky Charm", "Power Ring", "Speed Boots"]
 
-# Attack system - now using AttackDatabase
-var available_attacks: Array[String] = ["Slash", "Block", "Defend", "Power Strike", "Quick Attack", "Magic Bolt", "Lunge Strike", "Poison Blade", "Fire Blast"]
-var equipped_attacks: Array[String] = ["Slash", "Block", "Defend"]  # Max 3-4 equipped attacks
 var max_equipped_attacks: int = 4
 
-func _init():
-	max_hp = stats["CON"] * 2
-	current_hp = max_hp
-	
-	# Start with basic equipment
-	equipped_weapon = "Basic Sword"
-	equipped_armor = "Cloth Robe"
-
-# Existing combat methods (unchanged interface)
-func is_alive() -> bool:
-	return current_hp > 0
-
-func take_damage(damage: int):
-	current_hp = max(0, current_hp - damage)
-
-func heal(amount: int):
-	current_hp = min(max_hp, current_hp + amount)
-
-# Updated to use AttackDatabase
-func get_attack_damage(attack_name: String) -> int:
-	return AttackDatabase.calculate_attack_damage(attack_name, stats, get_weapon_damage_bonus())
-
+# Override base methods to add equipment bonuses
 func get_speed() -> int:
 	var base_speed = stats["SPD"]
 	
@@ -62,7 +47,10 @@ func get_speed() -> int:
 	
 	return base_speed
 
-# Equipment bonus methods (unchanged)
+func get_attack_damage(attack_name: String, weapon_bonus: int = 0) -> int:
+	return super.get_attack_damage(attack_name, get_weapon_damage_bonus())
+
+# Equipment bonus methods
 func get_weapon_damage_bonus() -> int:
 	match equipped_weapon:
 		"Basic Sword":
@@ -96,7 +84,7 @@ func get_accessory_bonus() -> Dictionary:
 		_:
 			return {}
 
-# Equipment management (unchanged)
+# Equipment management
 func equip_weapon(weapon_name: String) -> bool:
 	if weapon_name in available_weapons:
 		equipped_weapon = weapon_name
@@ -115,7 +103,7 @@ func equip_accessory(accessory_name: String) -> bool:
 		return true
 	return false
 
-# Attack management - now validates against AttackDatabase
+# Attack management - now validates against AttackDatabase and respects max equipped limit
 func equip_attack(attack_name: String) -> bool:
 	# Check if attack exists in database and is available to player
 	if attack_name in available_attacks and attack_name not in equipped_attacks:
@@ -124,16 +112,10 @@ func equip_attack(attack_name: String) -> bool:
 			return true
 	return false
 
-func unequip_attack(attack_name: String) -> bool:
-	if attack_name in equipped_attacks:
-		equipped_attacks.erase(attack_name)
-		return true
-	return false
-
 func can_equip_more_attacks() -> bool:
 	return equipped_attacks.size() < max_equipped_attacks
 
-# Get methods for UI (unchanged)
+# Get methods for UI
 func get_equipped_items() -> Dictionary:
 	return {
 		"weapon": equipped_weapon,
@@ -147,11 +129,3 @@ func get_available_items() -> Dictionary:
 		"armor": available_armor,
 		"accessories": available_accessories
 	}
-
-# New helper methods for attack info
-func get_attack_info(attack_name: String) -> Dictionary:
-	return AttackDatabase.get_attack_data(attack_name)
-
-func get_attack_description(attack_name: String) -> String:
-	var attack_data = AttackDatabase.get_attack_data(attack_name)
-	return attack_data.get("description", "No description available")

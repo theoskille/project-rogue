@@ -2,23 +2,12 @@ class_name CombatManager
 extends Control
 
 var player: Player  # Will be set by GameManager
-var enemy: Enemy
 var game_manager: Node
-var status_manager: StatusEffectManager  # Handles DOT and other ongoing effects
 
-# Combat state
-var player_position: int = 2  # 0-7 on battlefield
-var enemy_position: int = 5   # Start 2 tiles apart
-var current_turn: String = ""  # "player" or "enemy"
-var combat_active: bool = false
-
-# Menu state
-var selected_action: int = 0
-var current_menu: String = "main"  # "main" or "attack"
-var main_action_options: Array[String] = ["Attack", "Move Forward", "Move Back", "Run"]
-var attack_options: Array[String] = []  # Will be populated from player's equipped attacks
-
-# No longer need attack_data - using AttackDatabase instead
+# New modular components
+var combat_controller: CombatController
+var combat_ui: CombatUI
+var combat_input_handler: CombatInputHandler
 
 # UI elements - direct children of CombatManager
 @onready var combat_info: Label = $HeaderContainer/CombatInfo
@@ -32,342 +21,50 @@ var attack_options: Array[String] = []  # Will be populated from player's equipp
 
 func _ready():
 	game_manager = get_parent()
-	status_manager = StatusEffectManager.new()
 	# Note: player will be set by GameManager via set_player()
-	setup_battlefield()
-	setup_actions_menu()
 
 # New method to set the player reference from GameManager
 func set_player(p: Player):
 	player = p
+	# Initialize the modular components
+	combat_controller = CombatController.new(player)
+	combat_ui = CombatUI.new(combat_controller)
+	combat_input_handler = CombatInputHandler.new(combat_controller)
+	
+	# Set up the UI references
+	setup_ui()
+	
+	# Connect combat end signal to game manager
+	combat_controller.combat_ended.connect(_on_combat_ended)
 
-func setup_battlefield():
-	# Create 8 battlefield tiles - static size that won't stretch
-	for i in range(8):
-		var tile = ColorRect.new()
-		tile.custom_minimum_size = Vector2(80, 80)
-		tile.size = Vector2(80, 80)  # Set explicit size
-		tile.color = Color.DARK_GRAY
-		
-		# Prevent the tile from expanding
-		tile.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		tile.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		
-		battlefield_container.add_child(tile)
-
-func setup_actions_menu():
-	# Create action buttons
-	for i in range(main_action_options.size()):
-		var action_label = Label.new()
-		action_label.text = main_action_options[i]
-		actions_menu.add_child(action_label)
+func setup_ui():
+	# Set UI references for CombatUI
+	combat_ui.set_ui_references(
+		combat_info,
+		battlefield_container,
+		actions_menu,
+		status_display,
+		combat_log_panel,
+		combat_log_center,
+		combat_log_scroll,
+		combat_log_vbox
+	)
 	
-	update_actions_menu()
-
-func get_current_options() -> Array[String]:
-	if current_menu == "main":
-		return main_action_options
-	else:
-		return attack_options
-
-func update_attack_options():
-	# Build attack menu from player's equipped attacks + Back option
-	attack_options.clear()
-	
-	if player and player.equipped_attacks.size() > 0:
-		for attack in player.equipped_attacks:
-			attack_options.append(attack)
-	else:
-		# Fallback if no attacks equipped
-		attack_options.append("Basic Attack")
-	
-	# Always add Back option
-	attack_options.append("Back")
-
-func initialize_combat(enemy_data: Enemy):
-	# Ensure we have a player reference
-	if not player:
-		print("ERROR: CombatManager has no player reference!")
-		return
-	
-	clear_combat_log()
-	
-	enemy = enemy_data
-	player_position = 2
-	enemy_position = 5
-	combat_active = true
-	current_menu = "main"
-	selected_action = 0
-	
-	# Clear any previous status effects
-	status_manager.clear_all_effects()
-	
-	# Update attack options from player's equipped attacks
-	update_attack_options()
-	
-	# Determine who goes first based on speed
-	if player.get_speed() >= enemy.get_speed():
-		current_turn = "player"
-	else:
-		current_turn = "enemy"
-	
-	log_combat_message("Combat begins against %s!" % enemy.name)
-	update_display()
-	
-	# If enemy goes first, take enemy turn
-	if current_turn == "enemy":
-		call_deferred("take_enemy_turn")
+	# Set up the UI components
+	combat_ui.setup_battlefield()
+	combat_ui.setup_actions_menu()
 
 func handle_input(event: InputEvent):
-	if not combat_active:
-		return
-		
-	if not event.is_pressed():
-		return
-		
-	if event is InputEventKey:
-		if current_turn == "player":
-			match event.keycode:
-				KEY_W, KEY_UP:
-					navigate_menu(-1)
-				KEY_S, KEY_DOWN:
-					navigate_menu(1)
-				KEY_SPACE:
-					execute_selected_action()
+	# Delegate input handling to the input handler
+	combat_input_handler.handle_input(event)
 
-func navigate_menu(direction: int):
-	var current_options = get_current_options()
-	selected_action = (selected_action + direction) % current_options.size()
-	if selected_action < 0:
-		selected_action = current_options.size() - 1
-	update_actions_menu()
+func initialize_combat(enemy_data: Enemy):
+	# Delegate combat initialization to the controller
+	combat_controller.initialize_combat(enemy_data)
+	combat_ui.clear_combat_log()
 
-func update_actions_menu():
-	var current_options = get_current_options()
-	
-	# Clear existing labels
-	for child in actions_menu.get_children():
-		child.queue_free()
-	
-	# Create new labels for current menu
-	for i in range(current_options.size()):
-		var label = Label.new()
-		
-		if i == selected_action:
-			label.modulate = Color.YELLOW
-			if current_menu == "attack" and current_options[i] != "Back":
-				# Show attack details from AttackDatabase
-				var attack_data = AttackDatabase.get_attack_data(current_options[i])
-				var damage = AttackDatabase.calculate_attack_damage(current_options[i], player.stats, player.get_weapon_damage_bonus())
-				label.text = "> %s (DMG:%d RNG:%d ACC:%d%%) <" % [
-					current_options[i], 
-					damage, 
-					attack_data["range"], 
-					int(attack_data["accuracy"] * 100)
-				]
-			else:
-				label.text = "> " + current_options[i] + " <"
-		else:
-			label.modulate = Color.WHITE
-			if current_menu == "attack" and current_options[i] != "Back":
-				# Show attack details from AttackDatabase
-				var attack_data = AttackDatabase.get_attack_data(current_options[i])
-				var damage = AttackDatabase.calculate_attack_damage(current_options[i], player.stats, player.get_weapon_damage_bonus())
-				label.text = "  %s (DMG:%d RNG:%d ACC:%d%%)" % [
-					current_options[i], 
-					damage, 
-					attack_data["range"], 
-					int(attack_data["accuracy"] * 100)
-				]
-			else:
-				label.text = "  " + current_options[i]
-		
-		actions_menu.add_child(label)
-
-func execute_selected_action():
-	if current_menu == "main":
-		match selected_action:
-			0: # Attack
-				open_attack_menu()
-			1: # Move Forward
-				player_move(1)
-			2: # Move Back
-				player_move(-1)
-			3: # Run
-				player_run()
-	elif current_menu == "attack":
-		var attack_name = attack_options[selected_action]
-		if attack_name == "Back":
-			close_attack_menu()
-		else:
-			player_attack(attack_name)
-
-func open_attack_menu():
-	current_menu = "attack"
-	selected_action = 0
-	update_actions_menu()
-	update_combat_info()
-
-func close_attack_menu():
-	current_menu = "main"
-	selected_action = 0
-	update_actions_menu()
-	update_combat_info()
-
-func player_attack(attack_name: String):
-	# Handle special case attacks first
-	if attack_name == "Basic Attack":
-		# Fallback attack if no attacks equipped
-		var damage = 5
-		enemy.take_damage(damage)
-		log_combat_message("Player uses Basic Attack for %d damage!" % damage)
-		current_menu = "main"
-		selected_action = 0
-		end_player_turn()
-		return
-	
-	# Get attack data from AttackDatabase
-	var attack_data = AttackDatabase.get_attack_data(attack_name)
-	var damage = AttackDatabase.calculate_attack_damage(attack_name, player.stats, player.get_weapon_damage_bonus())
-	var range = attack_data["range"]
-	var accuracy = attack_data["accuracy"]
-	
-	var distance = abs(player_position - enemy_position)
-	
-	# Check range
-	if distance > range:
-		log_combat_message("Too far to use %s! (Distance: %d, Range: %d)" % [attack_name, distance, range])
-		return
-	
-	# Execute special effects BEFORE damage (for movement attacks)
-	var effects = AttackDatabase.get_special_effects(attack_name)
-	if effects.size() > 0:
-		SpecialEffectsHandler.execute_special_effects(attack_name, self)
-		# Recalculate distance after potential movement
-		distance = abs(player_position - enemy_position)
-		
-		# Check range again after movement
-		if distance > range:
-			log_combat_message("%s moved player out of range!" % attack_name)
-			current_menu = "main"
-			selected_action = 0
-			end_player_turn()
-			return
-	
-	# Apply damage
-	if randf() < accuracy:
-		enemy.take_damage(damage)
-		log_combat_message("Player uses %s for %d damage!" % [attack_name, damage])
-	else:
-		log_combat_message("Player's %s misses!" % attack_name)
-	
-	# Close attack menu and end turn
-	current_menu = "main"
-	selected_action = 0
-	end_player_turn()
-
-func player_move(direction: int):
-	var new_position = player_position + direction
-	
-	# Check bounds and enemy collision
-	if new_position < 0 or new_position > 7:
-		log_combat_message("Can't move there - out of bounds!")
-		return
-	
-	if new_position == enemy_position:
-		log_combat_message("Can't move there - enemy is blocking!")
-		return
-	
-	player_position = new_position
-	log_combat_message("Player moves to position %d" % player_position)
-	end_player_turn()
-
-func player_run():
-	var run_chance = 0.7  # 70% chance to run
-	if randf() < run_chance:
-		log_combat_message("Successfully ran away!")
-		end_combat(false)
-	else:
-		log_combat_message("Failed to run away!")
-		end_player_turn()
-
-func end_player_turn():
-	update_display()
-	
-	if not enemy.is_alive():
-		log_combat_message("%s defeated!" % enemy.name)
-		end_combat(true)
-		return
-	
-	# Apply status effects to enemy at end of player turn
-	var enemy_status_messages = status_manager.apply_enemy_effects(enemy, self)
-	for message in enemy_status_messages:
-		log_combat_message(message)
-	
-	# Check if enemy died from status effects
-	if not enemy.is_alive():
-		log_combat_message("%s defeated by status effects!" % enemy.name)
-		end_combat(true)
-		return
-	
-	current_turn = "enemy"
-	call_deferred("take_enemy_turn")
-
-func take_enemy_turn():
-	if not combat_active:
-		return
-		
-	# Simple AI: move closer if far, attack if close
-	var distance = abs(player_position - enemy_position)
-	
-	if distance <= 1:
-		# Attack
-		var attack_name = enemy.get_random_attack()
-		var damage = enemy.get_attack_damage(attack_name)
-		var hit_chance = 0.7
-		
-		if randf() < hit_chance:
-			player.take_damage(damage)
-			log_combat_message("%s uses %s for %d damage!" % [enemy.name, attack_name, damage])
-		else:
-			log_combat_message("%s's %s misses!" % [enemy.name, attack_name])
-	else:
-		# Move closer
-		var direction = 1 if player_position > enemy_position else -1
-		var new_position = enemy_position + direction
-		
-		if new_position != player_position and new_position >= 0 and new_position <= 7:
-			enemy_position = new_position
-			log_combat_message("%s moves to position %d" % [enemy.name, enemy_position])
-		else:
-			log_combat_message("%s can't move closer!" % enemy.name)
-	
-	end_enemy_turn()
-
-func end_enemy_turn():
-	update_display()
-	
-	if not player.is_alive():
-		log_combat_message("Player defeated!")
-		end_combat(false)
-		return
-	
-	# Apply status effects to player at end of enemy turn  
-	var player_status_messages = status_manager.apply_player_effects(player, self)
-	for message in player_status_messages:
-		log_combat_message(message)
-	
-	# Check if player died from status effects
-	if not player.is_alive():
-		log_combat_message("Player defeated by status effects!")
-		end_combat(false)
-		return
-	
-	current_turn = "player"
-
-func end_combat(player_won: bool):
-	combat_active = false
-	
+func _on_combat_ended(player_won: bool):
+	# Handle combat end by notifying game manager
 	if player_won:
 		# Mark room as cleared
 		var exploration_manager = game_manager.get_node("ExplorationManager")
@@ -375,116 +72,3 @@ func end_combat(player_won: bool):
 			exploration_manager.room_cleared()
 	
 	game_manager.end_combat(player_won)
-
-func update_display():
-	update_combat_info()
-	update_battlefield()
-	update_actions_menu()
-	
-	# Enhanced status display with enemy name and stats
-	var player_status = status_manager.get_player_status_text()
-	var enemy_status = status_manager.get_enemy_status_text()
-	
-	# Format player stats
-	var player_stats_text = "STR:%d INT:%d SPD:%d DEX:%d CON:%d DEF:%d LCK:%d" % [
-		player.stats["STR"], player.stats["INT"], player.stats["SPD"], 
-		player.stats["DEX"], player.stats["CON"], player.stats["DEF"], player.stats["LCK"]
-	]
-	
-	# Format enemy stats
-	var enemy_stats_text = "STR:%d INT:%d SPD:%d DEX:%d CON:%d DEF:%d LCK:%d" % [
-		enemy.stats["STR"], enemy.stats["INT"], enemy.stats["SPD"], 
-		enemy.stats["DEX"], enemy.stats["CON"], enemy.stats["DEF"], enemy.stats["LCK"]
-	]
-	
-	status_display.text = "=== PLAYER ===\nHP: %d/%d\nStats: %s\n%s\n=== %s ===\nHP: %d/%d\nStats: %s\n%s" % [
-		player.current_hp, player.max_hp,
-		player_stats_text,
-		player_status if player_status != "" else "No status effects",
-		enemy.name.to_upper(),
-		enemy.current_hp, enemy.max_hp,
-		enemy_stats_text,
-		enemy_status if enemy_status != "" else "No status effects"
-	]
-
-func update_combat_info():
-	# Combat info with simpler player turn text
-	if current_turn == "player":
-		if current_menu == "main":
-			combat_info.text = "Player Turn - Use W/S to select, SPACE to confirm"
-		else:
-			combat_info.text = "Select Attack - Use W/S to select, SPACE to confirm"
-	else:
-		combat_info.text = "%s's Turn..." % enemy.name
-	
-	combat_info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-
-func update_battlefield():
-	# Update battlefield tiles
-	for i in range(battlefield_container.get_child_count()):
-		var tile = battlefield_container.get_child(i) as ColorRect
-		
-		# Reset tile
-		tile.color = Color.DARK_GRAY
-		
-		# Clear any existing children (sprites will go here later)
-		for child in tile.get_children():
-			child.queue_free()
-		
-		# Add markers for player and enemy positions
-		if i == player_position:
-			tile.color = Color.BLUE
-			var player_marker = Label.new()
-			player_marker.text = "P"
-			player_marker.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			player_marker.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-			player_marker.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-			tile.add_child(player_marker)
-		elif i == enemy_position:
-			tile.color = Color.RED
-			var enemy_marker = Label.new()
-			enemy_marker.text = "E"
-			enemy_marker.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			enemy_marker.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-			enemy_marker.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-			tile.add_child(enemy_marker)
-			
-# Combat log settings
-var max_log_messages: int = 20  # Limit messages to prevent memory issues
-
-func log_combat_message(message: String):
-	if not combat_log_vbox:
-		print("ERROR VBOX")
-	print(message)
-	# Create a new label for this message
-	var log_label = Label.new()
-	log_label.modulate = Color.WHITE
-	log_label.text = message
-	log_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	log_label.custom_minimum_size.x = 200  # Set minimum width for proper wrapping
-	
-	# Add the label to the VBox
-	combat_log_vbox.add_child(log_label)
-	print("DEBUG: VBox child count after: ", combat_log_vbox.get_child_count())
-	print("DEBUG: VBox size: ", combat_log_vbox.size)
-	print("DEBUG: VBox visible: ", combat_log_vbox.visible)
-	print("DEBUG: ScrollContainer size: ", combat_log_scroll.size if combat_log_scroll else "null")
-	print("DEBUG: Panel size: ", combat_log_panel.size if combat_log_panel else "null")
-	
-	# Limit the number of messages (remove oldest if too many)
-	if combat_log_vbox.get_child_count() > max_log_messages:
-		var oldest_message = combat_log_vbox.get_child(0)
-		oldest_message.queue_free()
-	
-	# Auto-scroll to the bottom to show the latest message
-	call_deferred("scroll_to_bottom")
-
-func scroll_to_bottom():
-	if combat_log_scroll:
-		combat_log_scroll.scroll_vertical = combat_log_scroll.get_v_scroll_bar().max_value
-
-func clear_combat_log():
-	if combat_log_vbox:
-		# Remove all existing log messages
-		for child in combat_log_vbox.get_children():
-			child.queue_free()

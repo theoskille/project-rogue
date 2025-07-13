@@ -120,8 +120,7 @@ static func create_enemy(enemy_id: String) -> Enemy:
 	enemy.name = enemy_data["display_name"]
 	enemy.stats = enemy_data["stats"].duplicate()
 	enemy.attacks = enemy_data["attacks"].duplicate()
-	enemy.max_hp = enemy.stats["CON"] * 2
-	enemy.current_hp = enemy.max_hp
+	# Health is now automatically calculated in Entity._init()
 	
 	return enemy
 
