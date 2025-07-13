@@ -45,7 +45,7 @@ func _ready():
 
 func setup_ui():
 	instructions_label.text = "WASD: Navigate | Space: Equip | Tab: Switch Panel | E: Exit"
-	attack_instructions.text = "Space: Equip | Delete: Unequip | Tab: Switch Panel"
+	attack_instructions.text = "Space: Equip | Delete: Unequip | Tab: Switch Panel | N: Toggle Dev Mode"
 	
 	# Set up attack slot placeholders
 	attack_slot1.text = "Attack Slot 1: Empty"
@@ -171,19 +171,36 @@ func update_available_attacks_list():
 	
 	attacks_list.clear()
 	
-	# Get all attacks from AttackDatabase for debugging (you can remove this later)
+	# Get all attacks from AttackDatabase
 	var all_attacks = []
 	if attack_database:
 		all_attacks = attack_database.get_all_attack_names()
 	
-	# Show all attacks for debugging, but mark which ones are unlocked
+	# Show dev mode status
+	if player.is_dev_mode():
+		attacks_list.add_item("=== DEV MODE ENABLED - ALL ATTACKS UNLOCKED ===")
+		attacks_list.add_item("Press N to disable dev mode")
+		attacks_list.add_item("")  # Empty line for spacing
+	else:
+		attacks_list.add_item("=== NORMAL MODE - SKILL TREE UNLOCKED ATTACKS ===")
+		attacks_list.add_item("Press N to enable dev mode")
+		attacks_list.add_item("")  # Empty line for spacing
+	
+	# Show all attacks, but mark which ones are unlocked/equipped
 	for attack in all_attacks:
 		var text = attack
-		if player.is_attack_unlocked(attack):
-			text += " [UNLOCKED]"
-		else:
-			text += " [LOCKED]"
 		
+		if player.is_dev_mode():
+			# In dev mode, all attacks are available
+			text += " [AVAILABLE]"
+		else:
+			# In normal mode, show unlock status
+			if player.is_attack_unlocked(attack):
+				text += " [UNLOCKED]"
+			else:
+				text += " [LOCKED]"
+		
+		# Show equipped status
 		if attack in player.equipped_attacks:
 			text += " [EQUIPPED]"
 		
@@ -204,6 +221,8 @@ func handle_input(event: InputEvent):
 		KEY_D:
 			if current_focus == "items":
 				change_tab(1)
+		KEY_N:
+			toggle_dev_mode()
 		KEY_SPACE:
 			equip_selected_item()
 		KEY_TAB:
@@ -211,6 +230,16 @@ func handle_input(event: InputEvent):
 		KEY_DELETE, KEY_BACKSPACE:
 			if current_focus == "attacks":
 				unequip_selected_attack()
+
+# Dev mode functions
+func toggle_dev_mode():
+	if not player:
+		return
+	
+	player.toggle_dev_mode()
+	refresh_display()
+
+# Removed update_dev_mode_button_text()
 
 func navigate_selection(direction: int):
 	var current_list = get_current_item_list()
@@ -296,11 +325,27 @@ func equip_selected_item():
 	var success = false
 	
 	if current_focus == "attacks":
-		var attack_name = player.available_attacks[selected_index]
-		if attack_name in player.equipped_attacks:
-			success = player.unequip_attack(attack_name)
-		else:
-			success = player.equip_attack(attack_name)
+		# Skip header items in attacks list
+		var header_offset = 3  # 3 header items (status line, instruction line, empty line)
+		if selected_index < header_offset:
+			return  # Don't equip header items
+		
+		# Adjust index to account for header items
+		var actual_index = selected_index - header_offset
+		var all_attacks = attack_database.get_all_attack_names()
+		
+		if actual_index >= 0 and actual_index < all_attacks.size():
+			var attack_name = all_attacks[actual_index]
+			
+			# In dev mode, all attacks are available
+			# In normal mode, only unlocked attacks can be equipped
+			if player.is_dev_mode() or player.is_attack_unlocked(attack_name):
+				if attack_name in player.equipped_attacks:
+					success = player.unequip_attack(attack_name)
+				else:
+					success = player.equip_attack(attack_name)
+			else:
+				print("Cannot equip locked attack: %s" % attack_name)
 	else:
 		# Handle item equipment based on current tab
 		match tab_container.current_tab:
@@ -327,9 +372,21 @@ func unequip_selected_attack():
 	if selected.size() == 0:
 		return
 	
-	var attack_name = player.available_attacks[selected[0]]
-	if player.unequip_attack(attack_name):
-		refresh_display()
+	var selected_index = selected[0]
+	
+	# Skip header items in attacks list
+	var header_offset = 3  # 3 header items (status line, instruction line, empty line)
+	if selected_index < header_offset:
+		return  # Don't unequip header items
+	
+	# Adjust index to account for header items
+	var actual_index = selected_index - header_offset
+	var all_attacks = attack_database.get_all_attack_names()
+	
+	if actual_index >= 0 and actual_index < all_attacks.size():
+		var attack_name = all_attacks[actual_index]
+		if player.unequip_attack(attack_name):
+			refresh_display()
 
 # Signal handlers for ItemList selections
 func _on_weapons_list_item_selected(index: int):

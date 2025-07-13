@@ -26,10 +26,10 @@ func _init():
 	
 	# Player-specific attack setup - now based on skill tree
 	available_attacks = get_unlocked_attacks()
-	equipped_attacks = ["Slash", "Block", "Defend"]  # Max 3-4 equipped attacks
+	equipped_attacks = ["Arcane Bolt"]  # Start with basic wizard spell
 	
 	# Start with basic equipment
-	equipped_weapon = "Basic Sword"
+	equipped_weapon = "Magic Staff"
 	equipped_armor = "Cloth Robe"
 
 # Equipment system (Player-specific)
@@ -53,6 +53,9 @@ var experience_to_next_level: int = 100  # Base XP requirement
 var skill_points: int = 0
 var unlocked_skill_nodes: Array[String] = []
 var skill_tree_database: SkillTreeDatabase
+
+# Development flag to unlock all attacks for testing
+var dev_mode: bool = false  # Set to true to unlock all attacks
 
 # Initialize skill tree with starting abilities
 func initialize_skill_tree():
@@ -84,6 +87,11 @@ func unlock_skill_node(node_id: String) -> bool:
 
 # Get all attacks that are unlocked through the skill tree
 func get_unlocked_attacks() -> Array[String]:
+	if dev_mode:
+		# Dev mode: return all attacks from the database
+		return AttackDatabase.get_all_attack_names()
+	
+	# Normal mode: return only skill tree unlocked attacks
 	var unlocked_attacks: Array[String] = []
 	
 	for node_id in unlocked_skill_nodes:
@@ -99,8 +107,25 @@ func get_skill_tree_info() -> Dictionary:
 		"skill_points": skill_points,
 		"unlocked_nodes": unlocked_skill_nodes,
 		"unlockable_nodes": skill_tree_database.get_unlockable_nodes(unlocked_skill_nodes),
-		"all_nodes": skill_tree_database.get_all_node_ids()
+		"all_nodes": skill_tree_database.get_all_node_ids(),
+		"dev_mode": dev_mode
 	}
+
+# Development mode methods
+func toggle_dev_mode():
+	dev_mode = !dev_mode
+	# Update available attacks when dev mode changes
+	available_attacks = get_unlocked_attacks()
+	print("Dev mode %s" % ("enabled" if dev_mode else "disabled"))
+
+func set_dev_mode(enabled: bool):
+	dev_mode = enabled
+	# Update available attacks when dev mode changes
+	available_attacks = get_unlocked_attacks()
+	print("Dev mode %s" % ("enabled" if dev_mode else "disabled"))
+
+func is_dev_mode() -> bool:
+	return dev_mode
 
 # Check if a specific attack is unlocked
 func is_attack_unlocked(attack_name: String) -> bool:

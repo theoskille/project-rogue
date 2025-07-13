@@ -3,60 +3,128 @@ extends RefCounted
 
 # Skill tree data structure
 var skill_tree_data: Dictionary = {
-	"slash": {
-		"name": "Slash",
-		"description": "Basic sword attack that deals moderate damage",
-		"attack_name": "Slash",
+	# Starting ability
+	"arcane_bolt": {
+		"name": "Arcane Bolt",
+		"description": "A basic magical projectile that serves as your starting spell",
+		"attack_name": "Arcane Bolt",
 		"prerequisites": [],  # Starting ability - no prerequisites
 		"position": Vector2(0, 0),
 		"cost": 0  # Free starting ability
 	},
-	"lunge_strike": {
-		"name": "Lunge Strike",
-		"description": "A powerful thrust attack that can hit from a distance",
-		"attack_name": "Lunge Strike",
-		"prerequisites": ["slash"],
-		"position": Vector2(0, 1),  # Above Slash
+	
+	# Fire Elemental Path
+	"fire_bolt": {
+		"name": "Fire Bolt",
+		"description": "A magical fire projectile that burns the enemy",
+		"attack_name": "Fire Bolt",
+		"prerequisites": ["arcane_bolt"],
+		"position": Vector2(-2, 1),  # Left branch from Arcane Bolt
 		"cost": 1
 	},
-	"quick_attack": {
-		"name": "Quick Attack",
-		"description": "Fast, low damage attack that can be used frequently",
-		"attack_name": "Quick Attack",
-		"prerequisites": ["lunge_strike"],
-		"position": Vector2(-1, 1),  # Left of Lunge Strike
+	"fireball": {
+		"name": "Fireball",
+		"description": "A powerful fireball that explodes on impact",
+		"attack_name": "Fireball",
+		"prerequisites": ["fire_bolt"],
+		"position": Vector2(-2, 2),  # Above Fire Bolt
+		"cost": 2
+	},
+	"inferno": {
+		"name": "Inferno",
+		"description": "A devastating inferno that engulfs the enemy",
+		"attack_name": "Inferno",
+		"prerequisites": ["fireball"],
+		"position": Vector2(-2, 3),  # Above Fireball
+		"cost": 3
+	},
+	
+	# Frost Elemental Path
+	"frost_bolt": {
+		"name": "Frost Bolt",
+		"description": "A magical ice projectile that freezes the enemy",
+		"attack_name": "Frost Bolt",
+		"prerequisites": ["arcane_bolt"],
+		"position": Vector2(0, 1),  # Directly above Arcane Bolt
 		"cost": 1
 	},
-	"power_strike": {
-		"name": "Power Strike",
-		"description": "Heavy damage attack that deals massive damage but has a cooldown",
-		"attack_name": "Power Strike", 
-		"prerequisites": ["lunge_strike"],
-		"position": Vector2(1, 1),  # Right of Lunge Strike
+	"ice_storm": {
+		"name": "Ice Storm",
+		"description": "A storm of ice shards that pierces the enemy",
+		"attack_name": "Ice Storm",
+		"prerequisites": ["frost_bolt"],
+		"position": Vector2(0, 2),  # Above Frost Bolt
+		"cost": 2
+	},
+	"blizzard": {
+		"name": "Blizzard",
+		"description": "A devastating blizzard that freezes everything",
+		"attack_name": "Blizzard",
+		"prerequisites": ["ice_storm"],
+		"position": Vector2(0, 3),  # Above Ice Storm
+		"cost": 3
+	},
+	
+	# Shock Elemental Path
+	"lightning_bolt": {
+		"name": "Lightning Bolt",
+		"description": "A lightning bolt that requires distance",
+		"attack_name": "Lightning Bolt",
+		"prerequisites": ["arcane_bolt"],
+		"position": Vector2(2, 1),  # Right branch from Arcane Bolt
 		"cost": 1
 	},
-	"poison_blade": {
-		"name": "Poison Blade",
-		"description": "Attack that applies poison damage over time",
-		"attack_name": "Poison Blade",
-		"prerequisites": ["quick_attack"],
-		"position": Vector2(-1, 2),  # Above Quick Attack
+	"thunder_strike": {
+		"name": "Thunder Strike",
+		"description": "A powerful thunder strike that requires great distance",
+		"attack_name": "Thunder Strike",
+		"prerequisites": ["lightning_bolt"],
+		"position": Vector2(2, 2),  # Above Lightning Bolt
+		"cost": 2
+	},
+	"storm_call": {
+		"name": "Storm Call",
+		"description": "A devastating storm that calls down lightning from the sky",
+		"attack_name": "Storm Call",
+		"prerequisites": ["thunder_strike"],
+		"position": Vector2(2, 3),  # Above Thunder Strike
+		"cost": 3
+	},
+	
+	# Alchemist Path
+	"acid_splash": {
+		"name": "Acid Splash",
+		"description": "A corrosive acid that melts the enemy over time",
+		"attack_name": "Acid Splash",
+		"prerequisites": ["arcane_bolt"],
+		"position": Vector2(-1, -1),  # Below-left of Arcane Bolt
 		"cost": 1
 	},
-	"magic_bolt": {
-		"name": "Magic Bolt",
-		"description": "Basic magical attack that scales with intelligence",
-		"attack_name": "Magic Bolt",
-		"prerequisites": ["slash"],
-		"position": Vector2(0, -1),  # Below Slash
+	"venomous_cloud": {
+		"name": "Venomous Cloud",
+		"description": "A deadly cloud of venom that poisons the enemy",
+		"attack_name": "Venomous Cloud",
+		"prerequisites": ["acid_splash"],
+		"position": Vector2(-1, -2),  # Below Acid Splash
+		"cost": 2
+	},
+	
+	# Utility Abilities
+	"blink": {
+		"name": "Blink",
+		"description": "Teleport away from the enemy",
+		"attack_name": "Blink",
+		"prerequisites": ["arcane_bolt"],
+		"position": Vector2(1, -1),  # Below-right of Arcane Bolt
 		"cost": 1
 	},
-	"fire_blast": {
-		"name": "Fire Blast",
-		"description": "Magical fire attack that deals area damage",
-		"attack_name": "Fire Blast",
-		"prerequisites": ["magic_bolt"],
-		"position": Vector2(1, -1),  # Right of Magic Bolt
+	
+	"force_palm": {
+		"name": "Force Palm",
+		"description": "A magical melee strike that pushes the enemy back",
+		"attack_name": "Force Palm",
+		"prerequisites": ["arcane_bolt"],
+		"position": Vector2(0, -1),  # Directly below Arcane Bolt
 		"cost": 1
 	}
 }

@@ -172,6 +172,16 @@ func execute_attack_with_animation(action: CombatAction):
 			end_player_turn()
 		return
 	
+	# Pre-execution check for attack actions
+	if action is AttackAction:
+		var attack_action = action as AttackAction
+		
+		# Check if attack can be executed before starting animation
+		if not attack_action.can_execute(self):
+			# Attack cannot be executed, don't start animation
+			# The can_execute method will log the appropriate message
+			return
+	
 	# Store the action to resolve after animation
 	pending_action = action
 	

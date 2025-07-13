@@ -37,12 +37,13 @@ func set_player(p: Player):
 	refresh_display()
 
 func refresh_display():
-	if not player or not skill_tree_database:
-		print("SkillTreeUI: refresh_display - missing player or database")
+	if not player:
 		return
 	
-	print("SkillTreeUI: refresh_display called")
+	# Update skill points display
 	update_skill_points_display()
+	
+	# Update skill tree visual (this handles the node states)
 	update_skill_tree_visual()
 
 func update_skill_points_display():
@@ -200,6 +201,18 @@ func _on_node_clicked(node_id: String):
 func _draw():
 	if not skill_tree_database:
 		return
+	
+	# Draw dev mode indicator
+	if player and player.is_dev_mode():
+		var dev_text = "DEV MODE: All attacks unlocked"
+		var font = ThemeDB.fallback_font
+		var font_size = ThemeDB.fallback_font_size
+		var text_size = font.get_string_size(dev_text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
+		
+		# Draw background for dev mode indicator
+		var bg_rect = Rect2(10, 10, text_size.x + 20, text_size.y + 10)
+		draw_rect(bg_rect, Color.RED)
+		draw_string(font, Vector2(20, 20 + font_size), dev_text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color.WHITE)
 	
 	print("SkillTreeUI: Drawing with stored scale: ", calculated_scale, " center: ", calculated_center)
 	

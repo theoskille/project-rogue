@@ -17,8 +17,8 @@ var current_hp: int
 var max_hp: int
 
 # Attack system - using AttackDatabase
-var available_attacks: Array[String] = ["Slash"]
-var equipped_attacks: Array[String] = ["Slash"]
+var available_attacks: Array[String] = ["Arcane Bolt"]
+var equipped_attacks: Array[String] = ["Arcane Bolt"]
 
 func _init():
 	max_hp = stats["CON"] * 2
@@ -44,7 +44,7 @@ func get_speed() -> int:
 func get_random_attack() -> String:
 	if equipped_attacks.size() > 0:
 		return equipped_attacks[randi() % equipped_attacks.size()]
-	return "Slash"  # Fallback attack
+	return "Arcane Bolt"  # Fallback attack
 
 # Attack management
 func equip_attack(attack_name: String) -> bool:
