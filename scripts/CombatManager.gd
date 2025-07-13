@@ -9,6 +9,9 @@ var combat_controller: CombatController
 var combat_ui: CombatUI
 var combat_input_handler: CombatInputHandler
 
+# Animation overlay
+@onready var animation_overlay: CombatAnimationOverlay = $AnimationOverlay
+
 # UI elements - direct children of CombatManager
 @onready var combat_info: Label = $HeaderContainer/CombatInfo
 @onready var battlefield_container: HBoxContainer = $BattlefieldContainer/Battlefield
@@ -30,6 +33,10 @@ func set_player(p: Player):
 	combat_controller = CombatController.new(player)
 	combat_ui = CombatUI.new(combat_controller)
 	combat_input_handler = CombatInputHandler.new(combat_controller)
+	
+	# Connect animation overlay
+	if animation_overlay:
+		combat_controller.set_animation_overlay(animation_overlay)
 	
 	# Set up the UI references
 	setup_ui()

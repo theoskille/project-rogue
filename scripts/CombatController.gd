@@ -5,6 +5,7 @@ extends RefCounted
 var player: Player
 var enemy: Enemy
 var status_manager: StatusEffectManager
+var animation_overlay: CombatAnimationOverlay
 
 # Combat state
 var player_position: int = 2  # 0-7 on battlefield
@@ -12,11 +13,23 @@ var enemy_position: int = 5   # Start 2 tiles apart
 var current_turn: String = ""  # "player" or "enemy"
 var combat_active: bool = false
 
+# Animation state
+enum CombatState {
+	PLAYER_TURN,
+	ENEMY_TURN,
+	PLAYING_ANIMATION,
+	RESOLVING_ACTION
+}
+var current_state: CombatState = CombatState.PLAYER_TURN
+
 # Menu state
 var selected_action: int = 0
 var current_menu: String = "main"  # "main" or "attack"
 var main_actions: Array[CombatAction] = []  # Will be populated by ActionFactory
 var attack_actions: Array[CombatAction] = []  # Will be populated from player's equipped attacks
+
+# Pending action to resolve after animation
+var pending_action: CombatAction
 
 # Signals for UI updates
 signal combat_state_changed
@@ -31,6 +44,11 @@ func _init(p: Player):
 	player = p
 	status_manager = StatusEffectManager.new()
 	update_actions()
+
+func set_animation_overlay(overlay: CombatAnimationOverlay):
+	animation_overlay = overlay
+	if animation_overlay:
+		animation_overlay.animation_completed.connect(_on_animation_completed)
 
 func initialize_combat(enemy_data: Enemy):
 	enemy = enemy_data
@@ -112,17 +130,47 @@ func execute_selected_action():
 			0: # Attack
 				open_attack_menu()
 			_:
-				# Execute the action directly
+				# Execute non-attack actions immediately
 				if action.execute(self):
 					end_player_turn()
 	elif current_menu == "attack":
 		if action.action_name == "Back":
 			close_attack_menu()
 		else:
-			# Execute the attack action
-			if action.execute(self):
-				close_attack_menu()
-				end_player_turn()
+			# Execute attack actions with animation
+			execute_attack_with_animation(action)
+
+func execute_attack_with_animation(action: CombatAction):
+	if not animation_overlay:
+		# Fallback: execute immediately if no animation overlay
+		if action.execute(self):
+			close_attack_menu()
+			end_player_turn()
+		return
+	
+	# Store the action to resolve after animation
+	pending_action = action
+	
+	# Change to animation state
+	current_state = CombatState.PLAYING_ANIMATION
+	
+	# Start animation
+	animation_overlay.play_attack_animation(action)
+	
+	# Close attack menu
+	close_attack_menu()
+
+func _on_animation_completed(action: CombatAction):
+	# Animation finished, now resolve the action
+	current_state = CombatState.RESOLVING_ACTION
+	
+	if pending_action and pending_action == action:
+		# Execute the actual game logic
+		if action.execute(self):
+			end_player_turn()
+		
+		pending_action = null
+		current_state = CombatState.ENEMY_TURN
 
 func open_attack_menu():
 	current_menu = "attack"

@@ -14,6 +14,15 @@ func handle_input(event: InputEvent):
 		return
 		
 	if event is InputEventKey:
+		# Check if animation is playing
+		if combat_controller.current_state == CombatController.CombatState.PLAYING_ANIMATION:
+			# Allow skipping animation with ESC key
+			if event.keycode == KEY_ESCAPE:
+				if combat_controller.animation_overlay:
+					combat_controller.animation_overlay.skip_animation()
+			return
+		
+		# Normal input handling
 		if combat_controller.current_turn == "player":
 			match event.keycode:
 				KEY_W, KEY_UP:

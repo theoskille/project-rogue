@@ -167,11 +167,6 @@ func log_combat_message(message: String):
 	
 	# Add the label to the VBox
 	combat_log_vbox.add_child(log_label)
-	print("DEBUG: VBox child count after: ", combat_log_vbox.get_child_count())
-	print("DEBUG: VBox size: ", combat_log_vbox.size)
-	print("DEBUG: VBox visible: ", combat_log_vbox.visible)
-	print("DEBUG: ScrollContainer size: ", combat_log_scroll.size if combat_log_scroll else "null")
-	print("DEBUG: Panel size: ", combat_log_panel.size if combat_log_panel else "null")
 	
 	# Limit the number of messages (remove oldest if too many)
 	if combat_log_vbox.get_child_count() > max_log_messages:
