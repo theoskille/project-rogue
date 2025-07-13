@@ -28,6 +28,12 @@ func execute(controller: CombatController) -> bool:
 	if not can_execute(controller):
 		return false
 	
+	# Check if attack is on cooldown
+	var cooldown_remaining = controller.get_attack_cooldown(attack_name)
+	if cooldown_remaining > 0:
+		controller.log_combat_message("%s is on cooldown for %d more turns!" % [attack_name, cooldown_remaining])
+		return false
+	
 	# Handle special case attacks first
 	if attack_name == "Basic Attack":
 		return execute_basic_attack(controller)
@@ -66,6 +72,11 @@ func execute(controller: CombatController) -> bool:
 		if controller.damage_number_manager:
 			controller.damage_number_manager.show_damage(damage, controller.enemy_position)
 		
+		# Set cooldown if attack has one
+		var cooldown = attack_data.get("cooldown", 0)
+		if cooldown > 0:
+			controller.set_attack_cooldown(attack_name, cooldown)
+		
 		return true
 	else:
 		controller.log_combat_message("Player's %s misses!" % [attack_name])
@@ -74,11 +85,16 @@ func execute(controller: CombatController) -> bool:
 		if controller.damage_number_manager:
 			controller.damage_number_manager.show_miss(controller.enemy_position)
 		
+		# Set cooldown even on miss if attack has one
+		var cooldown = attack_data.get("cooldown", 0)
+		if cooldown > 0:
+			controller.set_attack_cooldown(attack_name, cooldown)
+		
 		return true  # Still counts as executed, just missed
 
 func execute_basic_attack(controller: CombatController) -> bool:
 	# Fallback attack if no attacks equipped
-	var damage = 5
+	var damage = 3
 	controller.enemy.take_damage(damage)
 	controller.log_combat_message("Player uses Basic Attack for %d damage!" % damage)
 	return true
@@ -118,11 +134,29 @@ func get_display_name() -> String:
 	# Use base damage for display (without player stats) to avoid errors
 	var base_damage = attack_data["base_damage"]
 	
-	return "%s (DMG:%d RNG:%d ACC:%d%%)" % [
+	# Add cooldown info if available
+	var cooldown = attack_data.get("cooldown", 0)
+	var cooldown_text = ""
+	if cooldown > 0:
+		cooldown_text = " CD:%d" % cooldown
+	
+	# Add scaling info for display
+	var scaling = attack_data["damage_scaling"]
+	var scaling_text = ""
+	if scaling.size() > 0:
+		var scaling_parts: Array[String] = []
+		for stat_name in scaling.keys():
+			var factor = scaling[stat_name]
+			scaling_parts.append("%s:%.1f" % [stat_name, factor])
+		scaling_text = " SCALING:" + ",".join(scaling_parts)
+	
+	return "%s (DMG:%d RNG:%d ACC:%d%%%s%s)" % [
 		attack_name, 
 		base_damage, 
 		attack_data["range"], 
-		int(attack_data["accuracy"] * 100)
+		int(attack_data["accuracy"] * 100),
+		cooldown_text,
+		scaling_text
 	]
 
 func get_detailed_info(controller: CombatController) -> Dictionary:

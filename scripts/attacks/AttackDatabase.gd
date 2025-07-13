@@ -5,7 +5,7 @@ extends Resource
 # {
 #   "attack_name": {
 #     "base_damage": int,           # Base damage before player stats
-#     "damage_scaling": String,     # How damage scales with player stats ("STR", "DEX", "INT", etc.)
+#     "damage_scaling": Dictionary, # How damage scales with player stats {"STR": 0.5, "DEX": 0.25}
 #     "range": int,                 # Attack range
 #     "accuracy": float,            # Hit chance (0.0 to 1.0)
 #     "description": String,        # Attack description
@@ -15,8 +15,8 @@ extends Resource
 
 static var attacks: Dictionary = {
 	"Slash": {
-		"base_damage": 5,
-		"damage_scaling": "STR_DEX",  # Uses STR + DEX like in Player class
+		"base_damage": 3,
+		"damage_scaling": {"STR": 0.4, "DEX": 0.1},  # Primarily strength-based with some dexterity
 		"range": 1,
 		"accuracy": 0.90,
 		"description": "A basic melee attack",
@@ -24,8 +24,8 @@ static var attacks: Dictionary = {
 	},
 	
 	"Block": {
-		"base_damage": 2,
-		"damage_scaling": "STR_HALF",  # Uses STR / 2 like in Player class
+		"base_damage": 1,
+		"damage_scaling": {"STR": 0.2, "CON": 0.2},  # More defensive, uses constitution
 		"range": 1,
 		"accuracy": 0.95,
 		"description": "A defensive strike",
@@ -34,7 +34,7 @@ static var attacks: Dictionary = {
 	
 	"Defend": {
 		"base_damage": 0,
-		"damage_scaling": "NONE",
+		"damage_scaling": {},  # No damage scaling for pure defensive move
 		"range": 0,
 		"accuracy": 1.0,
 		"description": "Pure defensive stance",
@@ -42,36 +42,39 @@ static var attacks: Dictionary = {
 	},
 	
 	"Power Strike": {
-		"base_damage": 5,
-		"damage_scaling": "STR_DOUBLE",  # Uses STR * 2 like in Player class
+		"base_damage": 4,
+		"damage_scaling": {"STR": 0.8},  # High strength scaling for powerful attack
 		"range": 1,
 		"accuracy": 0.70,
 		"description": "A powerful attack that sacrifices accuracy",
-		"special_effects": [] as Array[String]
+		"special_effects": [] as Array[String],
+		"cooldown": 2
 	},
 	
 	"Quick Attack": {
-		"base_damage": 3,
-		"damage_scaling": "DEX_SPD",  # Uses DEX + SPD/2 like in Player class
+		"base_damage": 2,
+		"damage_scaling": {"DEX": 0.3, "SPD": 0.15},  # Speed and dexterity focused
 		"range": 2,
 		"accuracy": 0.85,
 		"description": "A fast attack with extended range",
-		"special_effects": [] as Array[String]
+		"special_effects": [] as Array[String],
+		"cooldown": 1
 	},
 	
 	"Magic Bolt": {
-		"base_damage": 4,
-		"damage_scaling": "INT_LCK",  # Uses INT + LCK like in Player class
+		"base_damage": 3,
+		"damage_scaling": {"INT": 0.4, "LCK": 0.1},  # Intelligence-based with luck
 		"range": 3,
 		"accuracy": 0.75,
 		"description": "A magical projectile attack",
-		"special_effects": [] as Array[String]
+		"special_effects": [] as Array[String],
+		"cooldown": 3
 	},
 	
 	# Example of new attack with special movement effect
 	"Lunge Strike": {
-		"base_damage": 7,
-		"damage_scaling": "STR_DEX",
+		"base_damage": 4,
+		"damage_scaling": {"STR": 0.3, "DEX": 0.2},  # Balanced strength and dexterity
 		"range": 2,
 		"accuracy": 0.80,
 		"description": "Strike forward while moving toward the enemy",
@@ -79,8 +82,8 @@ static var attacks: Dictionary = {
 	},
 	
 	"Backstep Slash": {
-		"base_damage": 6,
-		"damage_scaling": "DEX",
+		"base_damage": 3,
+		"damage_scaling": {"DEX": 0.45},  # High dexterity scaling
 		"range": 1,
 		"accuracy": 0.85,
 		"description": "Attack then step backward",
@@ -89,8 +92,8 @@ static var attacks: Dictionary = {
 	
 	# DOT attacks
 	"Poison Blade": {
-		"base_damage": 4,
-		"damage_scaling": "DEX",
+		"base_damage": 2,
+		"damage_scaling": {"DEX": 0.35, "INT": 0.05},  # Primarily dexterity with some intelligence
 		"range": 1,
 		"accuracy": 0.90,
 		"description": "Poisoned weapon that causes damage over time",
@@ -98,8 +101,8 @@ static var attacks: Dictionary = {
 	},
 	
 	"Fire Blast": {
-		"base_damage": 6,
-		"damage_scaling": "INT",
+		"base_damage": 3,
+		"damage_scaling": {"INT": 0.5, "LCK": 0.05},  # High intelligence scaling
 		"range": 2,
 		"accuracy": 0.80,
 		"description": "Magical fire attack that burns the enemy",
@@ -114,8 +117,8 @@ static func get_attack_data(attack_name: String) -> Dictionary:
 	else:
 		# Return default attack data
 		return {
-			"base_damage": 3,
-			"damage_scaling": "STR",
+			"base_damage": 2,
+			"damage_scaling": {"STR": 0.3},
 			"range": 1,
 			"accuracy": 0.70,
 			"description": "Unknown attack",
@@ -131,27 +134,10 @@ static func calculate_attack_damage(attack_name: String, player_stats: Dictionar
 	var stat_damage = 0
 	
 	# Apply damage scaling based on player stats
-	match scaling:
-		"STR":
-			stat_damage = player_stats["STR"]
-		"DEX":
-			stat_damage = player_stats["DEX"]
-		"INT":
-			stat_damage = player_stats["INT"]
-		"STR_DEX":
-			stat_damage = player_stats["STR"] + player_stats["DEX"]
-		"STR_HALF":
-			stat_damage = player_stats["STR"] / 2
-		"STR_DOUBLE":
-			stat_damage = player_stats["STR"] * 2
-		"DEX_SPD":
-			stat_damage = player_stats["DEX"] + player_stats["SPD"] / 2
-		"INT_LCK":
-			stat_damage = player_stats["INT"] + player_stats["LCK"]
-		"NONE":
-			stat_damage = 0
-		_:
-			stat_damage = player_stats["STR"]  # Default fallback
+	for stat_name in scaling.keys():
+		var stat_value = player_stats.get(stat_name, 0) # Get stat value, default to 0 if not found
+		var scaling_factor = scaling[stat_name]
+		stat_damage += stat_value * scaling_factor
 	
 	return base_damage + stat_damage + weapon_bonus
 

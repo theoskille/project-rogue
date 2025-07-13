@@ -30,7 +30,8 @@ func apply_player_effects(player, combat_manager) -> Array[String]:
 	
 	for effect in player_effects:
 		var message = effect.apply_effect(player, combat_manager)
-		messages.append(message)
+		if message != "":
+			messages.append(message)
 		
 		effect.tick_duration()
 		if effect.is_expired():

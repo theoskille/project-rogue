@@ -49,17 +49,35 @@ static func create_attack_menu_action() -> SpecialAction:
 	return action
 
 # Create attack actions from player's equipped attacks
-static func create_attack_actions(player: Player) -> Array[CombatAction]:
+static func create_attack_actions(player: Player, cooldowns: Dictionary = {}) -> Array[CombatAction]:
 	var actions: Array[CombatAction] = []
 	
 	if player.equipped_attacks.size() > 0:
 		for attack_name in player.equipped_attacks:
-			actions.append(create_attack_action(attack_name))
+			# Check if attack is on cooldown
+			var cooldown_remaining = cooldowns.get(attack_name, 0)
+			if cooldown_remaining <= 0:
+				# Attack is available, create action
+				actions.append(create_attack_action(attack_name))
+			else:
+				# Attack is on cooldown, create disabled action
+				var disabled_action = create_disabled_attack_action(attack_name, cooldown_remaining)
+				actions.append(disabled_action)
 	else:
 		# Fallback to basic attack
 		actions.append(create_attack_action("Basic Attack"))
 	
 	return actions
+
+# Create a disabled attack action (on cooldown)
+static func create_disabled_attack_action(attack_name: String, cooldown_remaining: int) -> SpecialAction:
+	var action = SpecialAction.new(SpecialAction.SpecialActionType.WAIT, 0.0, func(controller): 
+		controller.log_combat_message("%s is on cooldown for %d more turns!" % [attack_name, cooldown_remaining])
+		return false  # Don't end turn
+	)
+	action.action_name = "%s (CD: %d)" % [attack_name, cooldown_remaining]
+	action.description = "This attack is on cooldown"
+	return action
 
 # Create a custom action with a custom execution function
 static func create_custom_action(name: String, description: String, execution_func: Callable) -> SpecialAction:

@@ -5,6 +5,7 @@ extends RefCounted
 var player: Player
 var enemy: Enemy
 var status_manager: StatusEffectManager
+var cooldown_manager: CooldownManager
 var animation_overlay: CombatAnimationOverlay
 var damage_number_manager: DamageNumberManager
 
@@ -36,6 +37,8 @@ var attack_actions: Array[CombatAction] = []  # Will be populated from player's 
 var pending_action: CombatAction
 var pending_enemy_action: EnemyAttackAction
 
+# Cooldowns are now handled by StatusEffectManager
+
 # Signals for UI updates
 signal combat_state_changed
 signal player_turn_started
@@ -49,6 +52,7 @@ signal enemy_turn_delay_started
 func _init(p: Player):
 	player = p
 	status_manager = StatusEffectManager.new()
+	cooldown_manager = CooldownManager.new()
 	update_actions()
 
 func set_animation_overlay(overlay: CombatAnimationOverlay):
@@ -91,8 +95,8 @@ func update_actions():
 	# Update main actions
 	main_actions = ActionFactory.create_main_actions()
 	
-	# Update attack actions from player's equipped attacks
-	attack_actions = ActionFactory.create_attack_actions(player)
+	# Update attack actions from player's equipped attacks (filter out cooldowns)
+	attack_actions = ActionFactory.create_attack_actions(player, cooldown_manager.get_all_cooldowns())
 	
 	# Add "Back" action to attack menu
 	var back_action = ActionFactory.create_custom_action("Back", "Return to main menu", func(controller): 
@@ -100,6 +104,16 @@ func update_actions():
 		return true
 	)
 	attack_actions.append(back_action)
+
+# Cooldown management methods
+func get_attack_cooldown(attack_name: String) -> int:
+	return cooldown_manager.get_cooldown(attack_name)
+
+func set_attack_cooldown(attack_name: String, turns: int):
+	cooldown_manager.add_cooldown(attack_name, turns)
+
+func decrement_cooldowns():
+	cooldown_manager.tick_cooldowns()
 
 func get_current_actions() -> Array[CombatAction]:
 	if current_menu == "main":
@@ -225,6 +239,9 @@ func end_player_turn():
 		end_combat(true)
 		return
 	
+	# Decrement attack cooldowns at end of player turn
+	decrement_cooldowns()
+	
 	current_turn = "enemy"
 	emit_signal("enemy_turn_started")
 	emit_signal("enemy_turn_delay_started")
@@ -276,7 +293,7 @@ func end_enemy_turn():
 		end_combat(false)
 		return
 	
-	# Apply status effects to player at end of enemy turn  
+	# Apply status effects to player at end of enemy turn (including cooldowns)
 	var player_status_messages = status_manager.apply_player_effects(player, self)
 	for message in player_status_messages:
 		log_combat_message(message)
@@ -292,6 +309,7 @@ func end_enemy_turn():
 
 func end_combat(player_won: bool):
 	combat_active = false
+	cooldown_manager.clear_all_cooldowns()
 	emit_signal("combat_ended", player_won)
 
 func log_combat_message(message: String):
