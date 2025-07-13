@@ -6,6 +6,7 @@ var player: Player
 var enemy: Enemy
 var status_manager: StatusEffectManager
 var animation_overlay: CombatAnimationOverlay
+var damage_number_manager: DamageNumberManager
 
 # Combat state
 var player_position: int = 2  # 0-7 on battlefield
@@ -18,7 +19,10 @@ enum CombatState {
 	PLAYER_TURN,
 	ENEMY_TURN,
 	PLAYING_ANIMATION,
-	RESOLVING_ACTION
+	RESOLVING_ACTION,
+	ENEMY_ANIMATION,
+	RESOLVING_ENEMY_ACTION,
+	ENEMY_TURN_DELAY
 }
 var current_state: CombatState = CombatState.PLAYER_TURN
 
@@ -30,6 +34,7 @@ var attack_actions: Array[CombatAction] = []  # Will be populated from player's 
 
 # Pending action to resolve after animation
 var pending_action: CombatAction
+var pending_enemy_action: EnemyAttackAction
 
 # Signals for UI updates
 signal combat_state_changed
@@ -39,6 +44,7 @@ signal combat_ended(player_won: bool)
 signal combat_log_message(message: String)
 signal battlefield_updated
 signal actions_menu_updated
+signal enemy_turn_delay_started
 
 func _init(p: Player):
 	player = p
@@ -49,6 +55,10 @@ func set_animation_overlay(overlay: CombatAnimationOverlay):
 	animation_overlay = overlay
 	if animation_overlay:
 		animation_overlay.animation_completed.connect(_on_animation_completed)
+		animation_overlay.enemy_animation_completed.connect(_on_enemy_animation_completed)
+
+func set_damage_number_manager(manager: DamageNumberManager):
+	damage_number_manager = manager
 
 func initialize_combat(enemy_data: Enemy):
 	enemy = enemy_data
@@ -75,7 +85,7 @@ func initialize_combat(enemy_data: Enemy):
 	
 	# If enemy goes first, take enemy turn
 	if current_turn == "enemy":
-		call_deferred("take_enemy_turn")
+		emit_signal("enemy_turn_delay_started")
 
 func update_actions():
 	# Update main actions
@@ -172,6 +182,20 @@ func _on_animation_completed(action: CombatAction):
 		pending_action = null
 		current_state = CombatState.ENEMY_TURN
 
+func _on_enemy_animation_completed(attack_name: String):
+	# Enemy animation finished, now resolve the action
+	current_state = CombatState.RESOLVING_ENEMY_ACTION
+	
+	if pending_enemy_action and pending_enemy_action.attack_name == attack_name:
+		# Execute the actual game logic
+		pending_enemy_action.execute(self)
+		
+		pending_enemy_action = null
+		current_state = CombatState.PLAYER_TURN
+		
+		# End enemy turn after action is resolved
+		end_enemy_turn()
+
 func open_attack_menu():
 	current_menu = "attack"
 	selected_action = 0
@@ -203,7 +227,8 @@ func end_player_turn():
 	
 	current_turn = "enemy"
 	emit_signal("enemy_turn_started")
-	call_deferred("take_enemy_turn")
+	emit_signal("enemy_turn_delay_started")
+
 
 func take_enemy_turn():
 	if not combat_active:
@@ -213,16 +238,23 @@ func take_enemy_turn():
 	var distance = abs(player_position - enemy_position)
 	
 	if distance <= 1:
-		# Attack
+		# Attack - use animation system
 		var attack_name = enemy.get_random_attack()
 		var damage = enemy.get_attack_damage(attack_name)
 		var hit_chance = 0.7
 		
-		if randf() < hit_chance:
-			player.take_damage(damage)
-			log_combat_message("%s uses %s for %d damage!" % [enemy.name, attack_name, damage])
+		# Create enemy attack action
+		pending_enemy_action = EnemyAttackAction.new(attack_name, damage, hit_chance, player_position)
+		
+		# Start enemy attack animation
+		if animation_overlay:
+			current_state = CombatState.ENEMY_ANIMATION
+			animation_overlay.play_enemy_attack_animation(attack_name)
 		else:
-			log_combat_message("%s's %s misses!" % [enemy.name, attack_name])
+			# Fallback: execute immediately if no animation overlay
+			pending_enemy_action.execute(self)
+			pending_enemy_action = null
+			end_enemy_turn()
 	else:
 		# Move closer
 		var direction = 1 if player_position > enemy_position else -1
@@ -233,8 +265,8 @@ func take_enemy_turn():
 			log_combat_message("%s moves to position %d" % [enemy.name, enemy_position])
 		else:
 			log_combat_message("%s can't move closer!" % enemy.name)
-	
-	end_enemy_turn()
+		
+		end_enemy_turn()
 
 func end_enemy_turn():
 	emit_signal("combat_state_changed")

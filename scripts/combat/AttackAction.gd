@@ -61,9 +61,19 @@ func execute(controller: CombatController) -> bool:
 	if randf() < attack_accuracy:
 		controller.enemy.take_damage(damage)
 		controller.log_combat_message("Player uses %s for %d damage!" % [attack_name, damage])
+		
+		# Show damage number
+		if controller.damage_number_manager:
+			controller.damage_number_manager.show_damage(damage, controller.enemy_position)
+		
 		return true
 	else:
 		controller.log_combat_message("Player's %s misses!" % [attack_name])
+		
+		# Show miss indicator
+		if controller.damage_number_manager:
+			controller.damage_number_manager.show_miss(controller.enemy_position)
+		
 		return true  # Still counts as executed, just missed
 
 func execute_basic_attack(controller: CombatController) -> bool:
