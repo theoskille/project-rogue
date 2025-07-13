@@ -138,11 +138,13 @@ func update_status_display():
 	
 	# Format player stats
 	var player_stats_text = combat_controller.get_player_stats_text()
+	var player_level_text = combat_controller.get_player_level_text()
 	
 	# Format enemy stats
 	var enemy_stats_text = combat_controller.get_enemy_stats_text()
 	
-	status_display.text = "=== PLAYER ===\nHP: %d/%d\nStats: %s\n%s\n=== %s ===\nHP: %d/%d\nStats: %s\n%s" % [
+	status_display.text = "=== PLAYER ===\n%s\nHP: %d/%d\nStats: %s\n%s\n=== %s ===\nHP: %d/%d\nStats: %s\n%s" % [
+		player_level_text,
 		combat_controller.player.current_hp, combat_controller.player.max_hp,
 		player_stats_text,
 		player_status if player_status != "" else "No status effects",

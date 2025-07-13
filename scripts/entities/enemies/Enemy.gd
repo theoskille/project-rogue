@@ -2,11 +2,12 @@ class_name Enemy
 extends Entity
 
 var name: String
+var xp_reward: int = 50  # Base XP reward
 
 func _init():
 	# Default values - will be set by EnemyDatabase.create_enemy()
 	name = "Unknown Enemy"
-	stats = {"STR": 8, "INT": 4, "SPD": 8, "DEX": 8, "CON": 10, "DEF": 6, "LCK": 3}
+	stats = {"STR": 4, "INT": 2, "SPD": 4, "DEX": 4, "CON": 5, "DEF": 3, "LCK": 2}
 	attacks = ["Slash"]
 	
 	# Call parent constructor to set up health
@@ -32,3 +33,7 @@ func get_available_attacks_info() -> Array[Dictionary]:
 		attack_info.append(info)
 	
 	return attack_info
+
+# Get XP reward for defeating this enemy
+func get_xp_reward() -> int:
+	return xp_reward

@@ -1,6 +1,9 @@
 class_name Player
 extends Entity
 
+# Signals
+signal level_up(new_level: int, old_max_hp: int, new_max_hp: int)
+
 # Player-specific stats (override base stats)
 func _init():
 	# Override base stats with player-specific values
@@ -26,9 +29,9 @@ func _init():
 	equipped_armor = "Cloth Robe"
 
 # Equipment system (Player-specific)
-var equipped_weapon: String = ""
-var equipped_armor: String = ""
-var equipped_accessory: String = ""
+var equipped_weapon: String = "Rusty Sword"
+var equipped_armor: String = "Leather Armor"
+var equipped_accessory: String = "None"
 
 # Available items (inventory)
 var available_weapons: Array[String] = ["Basic Sword", "Iron Blade", "Magic Staff"]
@@ -36,6 +39,52 @@ var available_armor: Array[String] = ["Cloth Robe", "Leather Armor", "Chain Mail
 var available_accessories: Array[String] = ["Lucky Charm", "Power Ring", "Speed Boots"]
 
 var max_equipped_attacks: int = 4
+
+# Leveling system
+var level: int = 1
+var experience: int = 0
+var experience_to_next_level: int = 100  # Base XP requirement
+
+# XP requirements scale with level
+func get_xp_for_next_level() -> int:
+	return level * 100  # Simple scaling: level 1->2 = 100 XP, level 2->3 = 200 XP, etc.
+
+func gain_experience(amount: int):
+	experience += amount
+	check_level_up()
+
+func check_level_up():
+	while experience >= experience_to_next_level:
+		perform_level_up()
+
+func perform_level_up():
+	# Increase level
+	level += 1
+	
+	# Increase all stats by 1
+	for stat_name in stats.keys():
+		stats[stat_name] += 1
+	
+	# Recalculate health based on new CON
+	var old_max_hp = max_hp
+	max_hp = stats["CON"] * 2
+	current_hp = max_hp  # Full heal on level up
+	
+	# Calculate remaining XP
+	experience -= experience_to_next_level
+	experience_to_next_level = get_xp_for_next_level()
+	
+	# Emit signal for UI updates
+	emit_signal("level_up", level, old_max_hp, max_hp)
+
+# Get level info for UI
+func get_level_info() -> Dictionary:
+	return {
+		"level": level,
+		"experience": experience,
+		"experience_to_next": experience_to_next_level,
+		"progress": float(experience) / float(experience_to_next_level)
+	}
 
 # Override base methods to add equipment bonuses
 func get_speed() -> int:

@@ -63,6 +63,9 @@ func set_player(p: Player):
 	
 	# Connect enemy turn delay signal
 	combat_controller.enemy_turn_delay_started.connect(_on_enemy_turn_delay_started)
+	
+	# Connect player level up signal
+	player.level_up.connect(_on_player_level_up)
 
 func setup_ui():
 	# Set UI references for CombatUI
@@ -107,3 +110,12 @@ func _on_enemy_turn_delay_started():
 func _on_enemy_turn_timer_timeout():
 	# Timer finished, enemy can take their turn
 	combat_controller.take_enemy_turn()
+
+func _on_player_level_up(new_level: int, old_max_hp: int, new_max_hp: int):
+	# Show level up message in combat log
+	combat_ui.log_combat_message("LEVEL UP! You are now level %d!" % new_level)
+	combat_ui.log_combat_message("Max HP increased from %d to %d!" % [old_max_hp, new_max_hp])
+	combat_ui.log_combat_message("All stats increased by 1!")
+	
+	# Update the UI to show new stats
+	combat_ui.update_display()

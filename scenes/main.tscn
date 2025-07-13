@@ -202,75 +202,128 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+theme_override_constants/separation = 10
 metadata/_edit_use_anchors_ = true
 
 [node name="LeftPanel" type="VBoxContainer" parent="InventoryManager/HBoxContainer"]
 layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="PlayerStatsPanel" type="Panel" parent="InventoryManager/HBoxContainer/LeftPanel"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="PlayerStatsLabel" type="Label" parent="InventoryManager/HBoxContainer/LeftPanel/PlayerStatsPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+metadata/_edit_use_anchors_ = true
 
 [node name="EquippedItemsPanel" type="Panel" parent="InventoryManager/HBoxContainer/LeftPanel"]
 layout_mode = 2
+size_flags_vertical = 3
 
 [node name="EquippedItemsLabel" type="Label" parent="InventoryManager/HBoxContainer/LeftPanel/EquippedItemsPanel"]
 layout_mode = 0
-offset_right = 402.0
-offset_bottom = 36.0
-metadata/_edit_use_anchors_ = true
+offset_right = 40.0
+offset_bottom = 23.0
+text = "===Equiped Items===
+"
 
 [node name="EquippedItemsContainer" type="VBoxContainer" parent="InventoryManager/HBoxContainer/LeftPanel/EquippedItemsPanel"]
-layout_mode = 0
-offset_right = 491.0
-offset_bottom = 337.0
+layout_mode = 1
+anchors_preset = -1
+anchor_top = 0.159624
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 0
+metadata/_edit_use_anchors_ = true
 
 [node name="WeaponSlot" type="Label" parent="InventoryManager/HBoxContainer/LeftPanel/EquippedItemsPanel/EquippedItemsContainer"]
 layout_mode = 2
+text = "Weapon: None"
 
 [node name="ArmorSlot" type="Label" parent="InventoryManager/HBoxContainer/LeftPanel/EquippedItemsPanel/EquippedItemsContainer"]
 layout_mode = 2
+text = "Armor: None"
 
 [node name="AccessorySlot" type="Label" parent="InventoryManager/HBoxContainer/LeftPanel/EquippedItemsPanel/EquippedItemsContainer"]
 layout_mode = 2
+text = "Accessory: None"
 
 [node name="EquippedAttacksPanel" type="Panel" parent="InventoryManager/HBoxContainer/LeftPanel"]
 layout_mode = 2
+size_flags_vertical = 3
 
 [node name="EquippedAttacksLabel" type="Label" parent="InventoryManager/HBoxContainer/LeftPanel/EquippedAttacksPanel"]
 layout_mode = 0
-offset_top = 408.0
-offset_right = 329.0
-offset_bottom = 475.0
-metadata/_edit_use_anchors_ = true
+offset_right = 40.0
+offset_bottom = 23.0
+text = "===Equipped Attacks==="
 
 [node name="EquippedAttacksContainer" type="VBoxContainer" parent="InventoryManager/HBoxContainer/LeftPanel/EquippedAttacksPanel"]
-layout_mode = 0
-offset_top = 352.0
-offset_right = 570.0
-offset_bottom = 649.0
+layout_mode = 1
+anchors_preset = -1
+anchor_top = 0.163551
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 metadata/_edit_use_anchors_ = true
 
 [node name="AttackSlot1" type="Label" parent="InventoryManager/HBoxContainer/LeftPanel/EquippedAttacksPanel/EquippedAttacksContainer"]
 layout_mode = 2
+text = "Attack Slot 1: Empty"
 
 [node name="AttackSlot2" type="Label" parent="InventoryManager/HBoxContainer/LeftPanel/EquippedAttacksPanel/EquippedAttacksContainer"]
 layout_mode = 2
+text = "Attack Slot 2: Empty"
 
 [node name="AttackSlot3" type="Label" parent="InventoryManager/HBoxContainer/LeftPanel/EquippedAttacksPanel/EquippedAttacksContainer"]
 layout_mode = 2
+text = "Attack Slot 3: Empty"
 
 [node name="AttackSlot4" type="Label" parent="InventoryManager/HBoxContainer/LeftPanel/EquippedAttacksPanel/EquippedAttacksContainer"]
 layout_mode = 2
+text = "Attack Slot 4: Empty"
+
+[node name="CenterPanel" type="VBoxContainer" parent="InventoryManager/HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="SkillTreePanel" type="Panel" parent="InventoryManager/HBoxContainer/CenterPanel"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Label" type="Label" parent="InventoryManager/HBoxContainer/CenterPanel/SkillTreePanel"]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 23.0
+text = "Skill tree (coming soon)
+"
+horizontal_alignment = 1
+vertical_alignment = 1
 
 [node name="RightPanel" type="VBoxContainer" parent="InventoryManager/HBoxContainer"]
 layout_mode = 2
+size_flags_horizontal = 3
 
 [node name="ItemSelectionPanel" type="Panel" parent="InventoryManager/HBoxContainer/RightPanel"]
 layout_mode = 2
+size_flags_vertical = 3
 
 [node name="TabContainer" type="TabContainer" parent="InventoryManager/HBoxContainer/RightPanel/ItemSelectionPanel"]
-layout_mode = 0
-offset_left = 584.0
-offset_top = 4.0
-offset_right = 1149.0
-offset_bottom = 293.0
+layout_mode = 1
+anchors_preset = -1
+anchor_top = 0.164596
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 current_tab = 0
 metadata/_edit_use_anchors_ = true
 
@@ -316,33 +369,41 @@ grow_vertical = 2
 metadata/_edit_use_anchors_ = true
 
 [node name="InstructionsLabel" type="Label" parent="InventoryManager/HBoxContainer/RightPanel/ItemSelectionPanel"]
-layout_mode = 0
-offset_right = 40.0
-offset_bottom = 23.0
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+metadata/_edit_use_anchors_ = true
 
 [node name="AttacksPanel" type="Panel" parent="InventoryManager/HBoxContainer/RightPanel"]
 layout_mode = 2
+size_flags_vertical = 3
 
 [node name="AttacksLabel" type="Label" parent="InventoryManager/HBoxContainer/RightPanel/AttacksPanel"]
-layout_mode = 0
-offset_left = 723.0
-offset_top = 305.0
-offset_right = 1139.0
-offset_bottom = 356.0
+layout_mode = 1
+anchors_preset = -1
+anchor_right = 0.492063
+anchor_bottom = 0.0714286
+text = "===Available attacks==="
 metadata/_edit_use_anchors_ = true
 
 [node name="AttacksList" type="ItemList" parent="InventoryManager/HBoxContainer/RightPanel/AttacksPanel"]
-layout_mode = 0
-offset_left = 582.0
-offset_top = 415.0
-offset_right = 1151.0
-offset_bottom = 648.0
+layout_mode = 1
+anchors_preset = -1
+anchor_top = 0.111801
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 metadata/_edit_use_anchors_ = true
 
 [node name="AttackInstructions" type="Label" parent="InventoryManager/HBoxContainer/RightPanel/AttacksPanel"]
-layout_mode = 0
-offset_left = 589.0
-offset_top = 346.0
-offset_right = 851.0
-offset_bottom = 409.0
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.997355
+anchor_right = 1.0
+anchor_bottom = 0.0714286
+grow_horizontal = 0
 metadata/_edit_use_anchors_ = true

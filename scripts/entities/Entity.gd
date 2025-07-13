@@ -3,13 +3,13 @@ extends Resource
 
 # Base stats that all entities have
 var stats: Dictionary = {
-	"STR": 10,
-	"INT": 8, 
-	"SPD": 10,
-	"DEX": 10,
-	"CON": 12,
-	"DEF": 8,
-	"LCK": 5
+	"STR": 5,
+	"INT": 4, 
+	"SPD": 5,
+	"DEX": 5,
+	"CON": 6,
+	"DEF": 4,
+	"LCK": 3
 }
 
 # Health system

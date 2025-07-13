@@ -1,6 +1,9 @@
 class_name InventoryManager
 extends Control
 
+# UI References - Left Panel (Player Stats)
+@onready var player_stats_label: Label = $HBoxContainer/LeftPanel/PlayerStatsPanel/PlayerStatsLabel
+
 # UI References - Left Panel (Equipped Items)
 @onready var weapon_slot: Label = $HBoxContainer/LeftPanel/EquippedItemsPanel/EquippedItemsContainer/WeaponSlot
 @onready var armor_slot: Label = $HBoxContainer/LeftPanel/EquippedItemsPanel/EquippedItemsContainer/ArmorSlot
@@ -60,10 +63,30 @@ func refresh_display():
 	if not player:
 		return
 	
+	update_player_stats_display()
 	update_equipped_items_display()
 	update_equipped_attacks_display()
 	update_available_items_lists()
 	update_available_attacks_list()
+
+func update_player_stats_display():
+	if not player:
+		return
+	
+	var stats_text = "=== PLAYER STATS ===\n"
+	stats_text += "Level: %d\n" % player.level
+	stats_text += "XP: %d/%d\n" % [player.experience, player.experience_to_next_level]
+	stats_text += "HP: %d/%d\n" % [player.current_hp, player.max_hp]
+	stats_text += "\n=== STATS ===\n"
+	stats_text += "STR: %d\n" % player.stats["STR"]
+	stats_text += "DEX: %d\n" % player.stats["DEX"]
+	stats_text += "CON: %d\n" % player.stats["CON"]
+	stats_text += "INT: %d\n" % player.stats["INT"]
+	stats_text += "SPD: %d\n" % player.stats["SPD"]
+	stats_text += "DEF: %d\n" % player.stats["DEF"]
+	stats_text += "LCK: %d\n" % player.stats["LCK"]
+	
+	player_stats_label.text = stats_text
 
 func update_equipped_items_display():
 	if not player:

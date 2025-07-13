@@ -310,6 +310,13 @@ func end_enemy_turn():
 func end_combat(player_won: bool):
 	combat_active = false
 	cooldown_manager.clear_all_cooldowns()
+	
+	if player_won and enemy:
+		# Award XP for defeating the enemy
+		var xp_gained = enemy.get_xp_reward()
+		player.gain_experience(xp_gained)
+		log_combat_message("Gained %d experience points!" % xp_gained)
+	
 	emit_signal("combat_ended", player_won)
 
 func log_combat_message(message: String):
@@ -341,4 +348,16 @@ func get_enemy_stats_text() -> String:
 	return "STR:%d INT:%d SPD:%d DEX:%d CON:%d DEF:%d LCK:%d" % [
 		enemy.stats["STR"], enemy.stats["INT"], enemy.stats["SPD"], 
 		enemy.stats["DEX"], enemy.stats["CON"], enemy.stats["DEF"], enemy.stats["LCK"]
+	]
+
+func get_player_level_info() -> Dictionary:
+	return player.get_level_info()
+
+func get_player_level_text() -> String:
+	var level_info = player.get_level_info()
+	return "Level %d - XP: %d/%d (%.1f%%)" % [
+		level_info["level"],
+		level_info["experience"],
+		level_info["experience_to_next"],
+		level_info["progress"] * 100
 	] 
