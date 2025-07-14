@@ -126,6 +126,62 @@ var skill_tree_data: Dictionary = {
 		"prerequisites": ["arcane_bolt"],
 		"position": Vector2(0, -1),  # Directly below Arcane Bolt
 		"cost": 1
+	},
+	
+	# New enemy movement abilities
+	"gravity_pull": {
+		"name": "Gravity Pull",
+		"description": "Magically pulls the enemy closer to you",
+		"attack_name": "Gravity Pull",
+		"prerequisites": ["arcane_bolt"],
+		"position": Vector2(-1, 1),  # Left-above of Arcane Bolt
+		"cost": 1
+	},
+	
+	"repulsion_field": {
+		"name": "Repulsion Field",
+		"description": "Creates a field that pushes the enemy away from you",
+		"attack_name": "Repulsion Field",
+		"prerequisites": ["gravity_pull"],
+		"position": Vector2(-1, 2),  # Above Gravity Pull
+		"cost": 2
+	},
+	
+	"vortex_strike": {
+		"name": "Vortex Strike",
+		"description": "Creates a vortex that damages and pulls the enemy closer",
+		"attack_name": "Vortex Strike",
+		"prerequisites": ["gravity_pull"],
+		"position": Vector2(-2, 1),  # Left of Gravity Pull
+		"cost": 2
+	},
+	
+	# New paralysis abilities
+	"paralyzing_bolt": {
+		"name": "Paralyzing Bolt",
+		"description": "A magical bolt that paralyzes the enemy",
+		"attack_name": "Paralyzing Bolt",
+		"prerequisites": ["arcane_bolt"],
+		"position": Vector2(1, 1),  # Right-above of Arcane Bolt
+		"cost": 1
+	},
+	
+	"binding_chains": {
+		"name": "Binding Chains",
+		"description": "Magical chains that bind and paralyze the enemy",
+		"attack_name": "Binding Chains",
+		"prerequisites": ["paralyzing_bolt"],
+		"position": Vector2(1, 2),  # Above Paralyzing Bolt
+		"cost": 2
+	},
+	
+	"thunder_clap": {
+		"name": "Thunder Clap",
+		"description": "A thunderous clap that stuns and paralyzes nearby enemies",
+		"attack_name": "Thunder Clap",
+		"prerequisites": ["paralyzing_bolt"],
+		"position": Vector2(2, 1),  # Right of Paralyzing Bolt
+		"cost": 2
 	}
 }
 

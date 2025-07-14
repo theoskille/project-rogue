@@ -274,6 +274,92 @@ static var attacks: Dictionary = {
 		"description": "A magical melee strike that pushes the enemy back",
 		"special_effects": ["push_back"] as Array[String],
 		"cooldown": 2
+	},
+	
+	# New attacks using enemy movement effects
+	"Gravity Pull": {
+		"base_damage": 2,
+		"damage_scaling": {"INT": 0.3, "LCK": 0.1},  # Intelligence-based
+		"min_range": 2,
+		"max_range": 4,
+		"accuracy": 0.80,
+		"description": "Magically pulls the enemy closer to you",
+		"special_effects": ["pull_enemy_closer"] as Array[String],
+		"effect_parameters": {
+			"pull_enemy_closer": {"distance": 2}
+		},
+		"cooldown": 3
+	},
+	
+	"Repulsion Field": {
+		"base_damage": 1,
+		"damage_scaling": {"INT": 0.2},  # Low damage, utility focused
+		"min_range": 1,
+		"max_range": 2,
+		"accuracy": 0.90,
+		"description": "Creates a field that pushes the enemy away",
+		"special_effects": ["push_enemy_away"] as Array[String],
+		"effect_parameters": {
+			"push_enemy_away": {"distance": 2}
+		},
+		"cooldown": 2
+	},
+	
+	"Vortex Strike": {
+		"base_damage": 4,
+		"damage_scaling": {"INT": 0.5, "LCK": 0.1},  # High intelligence scaling
+		"min_range": 2,
+		"max_range": 4,
+		"accuracy": 0.75,
+		"description": "Creates a vortex that damages and pulls the enemy",
+		"special_effects": ["pull_enemy_closer"] as Array[String],
+		"effect_parameters": {
+			"pull_enemy_closer": {"distance": 1}
+		},
+		"cooldown": 3
+	},
+	
+	# New paralysis attacks
+	"Paralyzing Bolt": {
+		"base_damage": 2,
+		"damage_scaling": {"INT": 0.3, "LCK": 0.1},  # Intelligence-based
+		"min_range": 2,
+		"max_range": 4,
+		"accuracy": 0.80,
+		"description": "A magical bolt that paralyzes the enemy",
+		"special_effects": ["apply_paralysis"] as Array[String],
+		"effect_parameters": {
+			"apply_paralysis": {"duration": 2}
+		},
+		"cooldown": 3
+	},
+	
+	"Binding Chains": {
+		"base_damage": 1,
+		"damage_scaling": {"INT": 0.2},  # Low damage, utility focused
+		"min_range": 1,
+		"max_range": 3,
+		"accuracy": 0.85,
+		"description": "Magical chains that bind and paralyze the enemy",
+		"special_effects": ["apply_paralysis"] as Array[String],
+		"effect_parameters": {
+			"apply_paralysis": {"duration": 3}
+		},
+		"cooldown": 4
+	},
+	
+	"Thunder Clap": {
+		"base_damage": 3,
+		"damage_scaling": {"INT": 0.4, "LCK": 0.1},  # Intelligence-based
+		"min_range": 1,
+		"max_range": 2,
+		"accuracy": 0.90,
+		"description": "A thunderous clap that stuns and paralyzes nearby enemies",
+		"special_effects": ["apply_paralysis"] as Array[String],
+		"effect_parameters": {
+			"apply_paralysis": {"duration": 1}
+		},
+		"cooldown": 2
 	}
 }
 

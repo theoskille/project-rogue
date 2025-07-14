@@ -23,10 +23,16 @@ static func execute_effect(effect_id: String, combat_controller: CombatControlle
 			handle_move_backward(combat_controller, context)
 		"move_forward":
 			handle_move_forward(combat_controller, context)
+		"push_enemy_away":
+			handle_push_enemy_away(combat_controller, context)
+		"pull_enemy_closer":
+			handle_pull_enemy_closer(combat_controller, context)
 		"apply_poison":
 			handle_apply_poison(combat_controller, context)
 		"apply_burn":
 			handle_apply_burn(combat_controller, context)
+		"apply_paralysis":
+			handle_apply_paralysis(combat_controller, context)
 		"push_back":
 			handle_push_back(combat_controller, context)
 		# Add more effects here as needed
@@ -102,6 +108,48 @@ static func handle_move_forward(combat_controller: CombatController, context: Di
 		else:
 			combat_controller.log_combat_message("Cannot move forward by %d positions!" % distance)
 
+# Effect: Push enemy away from player (toward higher position numbers)
+static func handle_push_enemy_away(combat_controller: CombatController, context: Dictionary):
+	var player_pos = combat_controller.player_position
+	var enemy_pos = combat_controller.enemy_position
+	var distance = context.get("distance", 1) # Default distance is 1
+	var new_position = enemy_pos + distance
+	
+	# Check if movement is valid
+	if new_position >= 0 and new_position <= 7 and new_position != player_pos:
+		combat_controller.enemy_position = new_position
+		if distance == 1:
+			combat_controller.log_combat_message("Enemy is pushed away to position %d!" % new_position)
+		else:
+			combat_controller.log_combat_message("Enemy is pushed away %d positions!" % distance)
+		combat_controller.emit_signal("battlefield_updated")  # Update visual
+	else:
+		if distance == 1:
+			combat_controller.log_combat_message("Cannot push enemy away!")
+		else:
+			combat_controller.log_combat_message("Cannot push enemy away by %d positions!" % distance)
+
+# Effect: Pull enemy closer to player (toward lower position numbers)
+static func handle_pull_enemy_closer(combat_controller: CombatController, context: Dictionary):
+	var player_pos = combat_controller.player_position
+	var enemy_pos = combat_controller.enemy_position
+	var distance = context.get("distance", 1) # Default distance is 1
+	var new_position = enemy_pos - distance
+	
+	# Check if movement is valid
+	if new_position >= 0 and new_position <= 7 and new_position != player_pos:
+		combat_controller.enemy_position = new_position
+		if distance == 1:
+			combat_controller.log_combat_message("Enemy is pulled closer to position %d!" % new_position)
+		else:
+			combat_controller.log_combat_message("Enemy is pulled closer %d positions!" % distance)
+		combat_controller.emit_signal("battlefield_updated")  # Update visual
+	else:
+		if distance == 1:
+			combat_controller.log_combat_message("Cannot pull enemy closer!")
+		else:
+			combat_controller.log_combat_message("Cannot pull enemy closer by %d positions!" % distance)
+
 # Effect: Apply poison to enemy
 static func handle_apply_poison(combat_controller: CombatController, context: Dictionary):
 	var duration = context.get("duration", 3)  # Default 3 turns
@@ -119,6 +167,14 @@ static func handle_apply_burn(combat_controller: CombatController, context: Dict
 	var burn_effect = BurnEffect.new(duration, damage, "Player Attack")
 	combat_controller.status_manager.add_effect_to_enemy(burn_effect)
 	combat_controller.log_combat_message("Enemy is burning for %d turns!" % duration)
+
+# Effect: Apply paralysis to enemy
+static func handle_apply_paralysis(combat_controller: CombatController, context: Dictionary):
+	var duration = context.get("duration", 2)  # Default 2 turns
+	
+	var paralysis_effect = ParalysisEffect.new(duration, "Player Attack")
+	combat_controller.status_manager.add_effect_to_enemy(paralysis_effect)
+	combat_controller.log_combat_message("Enemy is paralyzed for %d turns!" % duration)
 
 # Effect: Push enemy back
 static func handle_push_back(combat_controller: CombatController, context: Dictionary):
@@ -139,11 +195,11 @@ static func handle_push_back(combat_controller: CombatController, context: Dicti
 
 # Helper: Check if effect modifies movement
 static func is_movement_effect(effect_id: String) -> bool:
-	return effect_id in ["move_toward_target", "move_backward", "move_forward", "push_back"]
+	return effect_id in ["move_toward_target", "move_backward", "move_forward", "push_enemy_away", "pull_enemy_closer", "push_back"]
 
 # Helper: Check if effect applies status
 static func is_status_effect(effect_id: String) -> bool:
-	return effect_id in ["apply_poison", "apply_burn"]
+	return effect_id in ["apply_poison", "apply_burn", "apply_paralysis"]
 
 # Helper: Get effect description for UI
 static func get_effect_description(effect_id: String) -> String:
@@ -154,10 +210,16 @@ static func get_effect_description(effect_id: String) -> String:
 			return "Steps backward"
 		"move_forward":
 			return "Moves forward"
+		"push_enemy_away":
+			return "Pushes enemy away"
+		"pull_enemy_closer":
+			return "Pulls enemy closer"
 		"apply_poison":
 			return "Applies poison"
 		"apply_burn":
 			return "Applies burn"
+		"apply_paralysis":
+			return "Applies paralysis"
 		"push_back":
 			return "Push back"
 		_:

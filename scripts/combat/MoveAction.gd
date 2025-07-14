@@ -68,6 +68,11 @@ func calculate_new_position(controller: CombatController) -> int:
 			return controller.player_position
 
 func can_execute(controller: CombatController) -> bool:
+	# Check if player is paralyzed
+	if controller.status_manager.player_has_effect("paralysis"):
+		controller.log_combat_message("Cannot move - you are paralyzed!")
+		return false
+	
 	# Check if movement would be valid
 	var new_position = calculate_new_position(controller)
 	return new_position >= 0 and new_position <= 7 and new_position != controller.enemy_position

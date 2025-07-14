@@ -9,23 +9,12 @@ var cooldown_manager: CooldownManager
 var animation_overlay: CombatAnimationOverlay
 var damage_number_manager: DamageNumberManager
 
-# Combat state
+# NEW: State machine
+var state_machine: CombatStateMachine
+
+# Combat state - simplified, state machine handles the rest
 var player_position: int = 2  # 0-7 on battlefield
 var enemy_position: int = 5   # Start 2 tiles apart
-var current_turn: String = ""  # "player" or "enemy"
-var combat_active: bool = false
-
-# Animation state
-enum CombatState {
-	PLAYER_TURN,
-	ENEMY_TURN,
-	PLAYING_ANIMATION,
-	RESOLVING_ACTION,
-	ENEMY_ANIMATION,
-	RESOLVING_ENEMY_ACTION,
-	ENEMY_TURN_DELAY
-}
-var current_state: CombatState = CombatState.PLAYER_TURN
 
 # Menu state
 var selected_action: int = 0
@@ -36,8 +25,6 @@ var attack_actions: Array[CombatAction] = []  # Will be populated from player's 
 # Pending action to resolve after animation
 var pending_action: CombatAction
 var pending_enemy_action: EnemyAttackAction
-
-# Cooldowns are now handled by StatusEffectManager
 
 # Signals for UI updates
 signal combat_state_changed
@@ -53,6 +40,14 @@ func _init(p: Player):
 	player = p
 	status_manager = StatusEffectManager.new()
 	cooldown_manager = CooldownManager.new()
+	
+	# NEW: Initialize state machine
+	state_machine = CombatStateMachine.new()
+	state_machine.state_changed.connect(_on_state_changed)
+	state_machine.turn_changed.connect(_on_turn_changed)
+	state_machine.combat_started.connect(_on_combat_started)
+	state_machine.combat_ended.connect(_on_combat_ended)
+	
 	update_actions()
 
 func set_animation_overlay(overlay: CombatAnimationOverlay):
@@ -68,7 +63,6 @@ func initialize_combat(enemy_data: Enemy):
 	enemy = enemy_data
 	player_position = 2
 	enemy_position = 5
-	combat_active = true
 	current_menu = "main"
 	selected_action = 0
 	
@@ -78,18 +72,32 @@ func initialize_combat(enemy_data: Enemy):
 	# Update actions from player's equipped attacks
 	update_actions()
 	
-	# Determine who goes first based on speed
-	if player.get_speed() >= enemy.get_speed():
-		current_turn = "player"
-	else:
-		current_turn = "enemy"
+	# NEW: Use state machine to start combat
+	state_machine.start_combat(player.get_speed(), enemy.get_speed())
 	
 	log_combat_message("Combat begins against %s!" % enemy.name)
-	emit_signal("combat_state_changed")
 	
 	# If enemy goes first, take enemy turn
-	if current_turn == "enemy":
+	if state_machine.current_turn == "enemy":
 		emit_signal("enemy_turn_delay_started")
+
+# NEW: State machine event handlers
+func _on_state_changed(old_state: CombatStateMachine.CombatState, new_state: CombatStateMachine.CombatState):
+	emit_signal("combat_state_changed")
+
+func _on_turn_changed(new_turn: String):
+	if new_turn == "player":
+		emit_signal("player_turn_started")
+	elif new_turn == "enemy":
+		emit_signal("enemy_turn_started")
+
+func _on_combat_started():
+	# Combat started - trigger UI update
+	emit_signal("combat_state_changed")
+
+func _on_combat_ended():
+	# Combat ended - trigger UI update
+	emit_signal("combat_state_changed")
 
 func update_actions():
 	# Update main actions
@@ -185,8 +193,8 @@ func execute_attack_with_animation(action: CombatAction):
 	# Store the action to resolve after animation
 	pending_action = action
 	
-	# Change to animation state
-	current_state = CombatState.PLAYING_ANIMATION
+	# NEW: Use state machine to start animation
+	state_machine.start_animation()
 	
 	# Start animation
 	animation_overlay.play_attack_animation(action)
@@ -196,7 +204,7 @@ func execute_attack_with_animation(action: CombatAction):
 
 func _on_animation_completed(action: CombatAction):
 	# Animation finished, now resolve the action
-	current_state = CombatState.RESOLVING_ACTION
+	state_machine.start_resolving_action()
 	
 	if pending_action and pending_action == action:
 		# Execute the actual game logic
@@ -204,18 +212,18 @@ func _on_animation_completed(action: CombatAction):
 			end_player_turn()
 		
 		pending_action = null
-		current_state = CombatState.ENEMY_TURN
+		state_machine.start_enemy_turn()
 
 func _on_enemy_animation_completed(attack_name: String):
 	# Enemy animation finished, now resolve the action
-	current_state = CombatState.RESOLVING_ENEMY_ACTION
+	state_machine.start_resolving_enemy_action()
 	
 	if pending_enemy_action and pending_enemy_action.attack_name == attack_name:
 		# Execute the actual game logic
 		pending_enemy_action.execute(self)
 		
 		pending_enemy_action = null
-		current_state = CombatState.PLAYER_TURN
+		state_machine.start_player_turn()
 		
 		# End enemy turn after action is resolved
 		end_enemy_turn()
@@ -252,13 +260,12 @@ func end_player_turn():
 	# Decrement attack cooldowns at end of player turn
 	decrement_cooldowns()
 	
-	current_turn = "enemy"
-	emit_signal("enemy_turn_started")
+	state_machine.start_enemy_turn()
 	emit_signal("enemy_turn_delay_started")
 
 
 func take_enemy_turn():
-	if not combat_active:
+	if not state_machine.combat_active:
 		return
 		
 	# Simple AI: move closer if far, attack if close
@@ -275,7 +282,7 @@ func take_enemy_turn():
 		
 		# Start enemy attack animation
 		if animation_overlay:
-			current_state = CombatState.ENEMY_ANIMATION
+			state_machine.start_enemy_animation()
 			animation_overlay.play_enemy_attack_animation(attack_name)
 		else:
 			# Fallback: execute immediately if no animation overlay
@@ -283,6 +290,12 @@ func take_enemy_turn():
 			pending_enemy_action = null
 			end_enemy_turn()
 	else:
+		# Check if enemy is paralyzed
+		if status_manager.enemy_has_effect("paralysis"):
+			log_combat_message("%s is paralyzed and cannot move!" % enemy.name)
+			end_enemy_turn()
+			return
+		
 		# Move closer
 		var direction = 1 if player_position > enemy_position else -1
 		var new_position = enemy_position + direction
@@ -314,11 +327,10 @@ func end_enemy_turn():
 		end_combat(false)
 		return
 	
-	current_turn = "player"
-	emit_signal("player_turn_started")
+	state_machine.start_player_turn()
 
 func end_combat(player_won: bool):
-	combat_active = false
+	state_machine.end_combat()
 	cooldown_manager.clear_all_cooldowns()
 	
 	if player_won and enemy:
@@ -332,9 +344,9 @@ func end_combat(player_won: bool):
 func log_combat_message(message: String):
 	emit_signal("combat_log_message", message)
 
-# Getter methods for UI
+# Getter methods for UI - updated to use state machine
 func get_combat_info() -> String:
-	if current_turn == "player":
+	if state_machine.is_player_turn():
 		if current_menu == "main":
 			return "Player Turn - Use W/S to select, SPACE to confirm"
 		else:
@@ -370,4 +382,14 @@ func get_player_level_text() -> String:
 		level_info["experience"],
 		level_info["experience_to_next"],
 		level_info["progress"] * 100
-	] 
+	]
+
+# NEW: Convenience getters for state machine properties
+func get_current_state() -> CombatStateMachine.CombatState:
+	return state_machine.current_state
+
+func get_current_turn() -> String:
+	return state_machine.current_turn
+
+func is_combat_active() -> bool:
+	return state_machine.combat_active 
